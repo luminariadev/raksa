@@ -1,0 +1,12 @@
+[package]
+name = "raksa-desktop"
+version = "0.3.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Tauri v2 desktop workbench shell wrapping the raksa Hybrid Web Workbench sidecar"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
