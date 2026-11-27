@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>raksa - Hybrid Defense-in-Depth Workbench</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <div class="app-shell" id="app-shell">
+    <!-- Top Command Bar -->
+    <header class="topbar">
+      <div class="brand-group">
+        <span class="brand-mark" aria-hidden="true">R</span>
+        <div>
+          <div class="brand-title">
+            <strong>raksa</strong>
+            <span class="badge badge-version" id="ui-version">v0.2.0</span>
+            <span class="badge badge-edition" id="ui-edition">OSS</span>
+          </div>
+          <div class="brand-sub">Hybrid Defense-in-Depth Workbench (L1-L7)</div>
+        </div>
+      </div>
+
+      <div class="command-controls">
+        <label class="field-inline" for="target-input">
+          <span class="muted">Target</span>
+          <input id="target-input" type="text" value="." placeholder="Workspace path or fixtures" autocomplete="off">
+        </label>
+        <label class="field-inline" for="profile-select">
+          <span class="muted">Profile</span>
+          <select id="profile-select">
+            <option value="full">full (L1-L6)</option>
+            <option value="repo">repo (CI/Sec)</option>
+            <option value="host">host (Hardening)</option>
+            <option value="web">web (Edge/WAF)</option>
+            <option value="incident">incident (DFIR)</option>
+          </select>
+        </label>
+        <div class="posture-pill" id="topbar-posture">
+          <span class="muted">Posture</span>
+          <strong id="topbar-score">--/100</strong>
+          <span class="grade-tag" id="topbar-grade">-</span>
+        </div>
+        <button type="button" class="btn btn-primary" id="btn-run-audit">Run Audit</button>
+        <button type="button" class="btn btn-ghost" id="btn-cmd-palette" title="Open Command Palette (Ctrl+K)">Ctrl+K</button>
+        <button type="button" class="btn btn-ghost" id="btn-toggle-right" title="Toggle Telemetry & MCP Panel">Panel</button>
+      </div>
+    </header>
+
+    <!-- 3-Panel IDE Workspace -->
+    <div class="workspace">
+      <!-- Left Explorer Sidebar -->
+      <aside class="sidebar-left">
+        <section class="nav-section">
+          <div class="section-label">Workbench Views</div>
+          <nav class="nav-list" id="view-nav">
+            <button type="button" class="nav-item active" data-view="overview">Overview</button>
+            <button type="button" class="nav-item" data-view="findings">Findings Explorer <span class="count-pill" id="nav-findings-count">0</span></button>
+            <button type="button" class="nav-item" data-view="matrix">Attack-vs-Defense Matrix</button>
+            <button type="button" class="nav-item" data-view="fixes">Fix Workbench</button>
+            <button type="button" class="nav-item" data-view="siem">SIEM &amp; Audit Ledger</button>
+          </nav>
+        </section>
+
+        <section class="nav-section">
+          <div class="section-header-row">
+            <span class="section-label">Hybrid Layers (L1-L6)</span>
+            <button type="button" class="btn-link" id="btn-run-selected">Scan Checked</button>
+          </div>
+          <div class="layer-tree" id="layer-tree"></div>
+        </section>
+
+        <section class="nav-section">
+          <div class="section-label">YAML Playbooks (5)</div>
+          <div class="playbook-list" id="playbook-list"></div>
+        </section>
+      </aside>
+
+      <!-- Center Multi-Tab Workspace -->
+      <main class="center-pane">
+        <!-- View: Overview -->
+        <section class="view-panel active" id="view-overview">
+          <div class="panel-header">
+            <div>
+              <h2>Suite Posture Overview</h2>
+              <p class="muted" id="overview-meta">Loading report metadata...</p>
+            </div>
+            <div class="action-row">
+              <button type="button" class="btn btn-ghost export-btn" data-format="json">JSON</button>
+              <button type="button" class="btn btn-ghost export-btn" data-format="sarif">SARIF 2.1.0</button>
+              <button type="button" class="btn btn-ghost export-btn" data-format="markdown">Markdown</button>
+              <button type="button" class="btn btn-ghost export-btn" data-format="html">HTML Report</button>
+            </div>
+          </div>
+
+          <div class="overview-top-grid">
+            <div class="card gauge-card">
+              <h3>Global Posture</h3>
+              <div class="gauge-wrap" id="overview-gauge-host"></div>
+            </div>
+            <div class="card stats-card">
+              <h3>Severity Distribution</h3>
+              <div class="severity-stats">
+                <div class="stat-box sev-critical"><span class="stat-num" id="stat-critical">0</span><span>Critical</span></div>
+                <div class="stat-box sev-high"><span class="stat-num" id="stat-high">0</span><span>High</span></div>
+                <div class="stat-box sev-medium"><span class="stat-num" id="stat-medium">0</span><span>Medium</span></div>
+                <div class="stat-box sev-low"><span class="stat-num" id="stat-low">0</span><span>Low</span></div>
+                <div class="stat-box sev-info"><span class="stat-num" id="stat-info">0</span><span>Info</span></div>
+              </div>
+              <div class="filter-summary" id="overview-filters-meta"></div>
+            </div>
+            <div class="card trend-card">
+              <div class="section-header-row">
+                <h3>Posture Trend (runs.ndjson)</h3>
+                <span class="badge" id="ledger-status-badge">checking...</span>
+              </div>
+              <div class="sparkline-wrap" id="sparkline-host"></div>
+            </div>
+          </div>
+
+          <div class="section-header-row">
+            <h3>Hybrid Layer Coverage &amp; Doctor Status</h3>
+            <button type="button" class="btn btn-ghost" id="btn-refresh-doctor">Refresh Doctor</button>
+          </div>
+          <div class="layer-cards-grid" id="layer-cards-grid"></div>
+        </section>
+
+        <!-- View: Findings Explorer -->
+        <section class="view-panel" id="view-findings">
+          <div class="panel-header">
+            <div>
+              <h2>Unified Findings Explorer</h2>
+              <p class="muted">Cross-layer Schema v1 findings with deduplication, D3FEND mapping, and fail-closed waivers.</p>
+            </div>
+            <div class="action-row">
+              <button type="button" class="btn btn-ghost export-btn" data-format="sarif">Export SARIF</button>
+              <button type="button" class="btn btn-ghost export-btn" data-format="html">Export HTML</button>
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <input type="search" id="findings-search" placeholder="Filter by rule ID, title, target, or D3FEND...">
+            <select id="findings-layer-filter">
+              <option value="">All Layers</option>
+              <option value="network-defense">L1 network-defense</option>
+              <option value="host-hardening">L2 host-hardening</option>
+              <option value="web-defense">L3 web-defense</option>
+              <option value="devsecops">L4 devsecops</option>
+              <option value="ioc-defense">L5 ioc-defense</option>
+              <option value="siem">L6 siem</option>
+            </select>
+            <select id="findings-severity-filter">
+              <option value="">All Severities</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+              <option value="info">Info</option>
+            </select>
+          </div>
+
+          <div class="findings-layout">
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Severity</th>
+                    <th>Rule</th>
+                    <th>Layer</th>
+                    <th>Finding</th>
+                    <th>Target</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="findings-tbody"></tbody>
+              </table>
+            </div>
+            <aside class="evidence-drawer" id="evidence-drawer">
+              <h3>Finding Evidence &amp; Remediation</h3>
+              <p class="muted" id="drawer-placeholder">Select a finding row to inspect structured evidence JSON, compliance controls, and remediation steps.</p>
+              <div id="drawer-content" class="hidden">
+                <div class="drawer-kv" id="drawer-meta"></div>
+                <h4>Remediation</h4>
+                <p id="drawer-remediation"></p>
+                <h4>Evidence JSON</h4>
+                <pre id="drawer-evidence"></pre>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- View: Attack-vs-Defense Matrix -->
+        <section class="view-panel" id="view-matrix">
+          <div class="panel-header">
+            <div>
+              <h2>Attack-vs-Defense Coverage Matrix</h2>
+              <p class="muted" id="matrix-summary">Mapping offensive vectors directly to Raksa defensive controls.</p>
+            </div>
+            <div class="pill-group" id="matrix-filter-pills">
+              <button type="button" class="pill active" data-status="">All</button>
+              <button type="button" class="pill" data-status="covered">Covered</button>
+              <button type="button" class="pill" data-status="partial">Partial</button>
+              <button type="button" class="pill" data-status="planned">Planned</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Threat Category</th>
+                  <th>ATT&amp;CK / D3FEND</th>
+                  <th>Layers &amp; Rules</th>
+                  <th>Defensive Aim</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="matrix-tbody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- View: Fix Workbench -->
+        <section class="view-panel" id="view-fixes">
+          <div class="panel-header">
+            <div>
+              <h2>Read-Only Fix Workbench</h2>
+              <p class="muted">Aggregated unified diffs from hostguard, pipeguard, and webshield without automatic mutations.</p>
+            </div>
+            <div class="action-row">
+              <button type="button" class="btn btn-ghost" id="btn-refresh-fixes">Refresh Previews</button>
+              <button type="button" class="btn btn-ghost" id="btn-copy-diff">Copy Diff</button>
+              <button type="button" class="btn btn-primary" id="btn-download-patch">Download .patch</button>
+            </div>
+          </div>
+          <div class="skipped-banner hidden" id="fix-skipped-banner"></div>
+          <div id="fix-items-host" class="fix-items-host"></div>
+        </section>
+
+        <!-- View: SIEM & Audit Ledger -->
+        <section class="view-panel" id="view-siem">
+          <div class="panel-header">
+            <div>
+              <h2>SIEM Bridge &amp; Hash-Chained Ledger</h2>
+              <p class="muted">Cross-layer correlation flow, SHA-256 history verification, and raksa-siem connectivity.</p>
+            </div>
+            <div class="action-row">
+              <button type="button" class="btn btn-ghost" id="btn-siem-health">Check SIEM Health</button>
+              <button type="button" class="btn btn-primary" id="btn-siem-ingest">Push Report to SIEM</button>
+            </div>
+          </div>
+
+          <div class="card telemetry-flow-card">
+            <h3>Cross-Layer Telemetry Pipeline</h3>
+            <div class="flow-host" id="telemetry-flow-host"></div>
+            <div class="siem-status-line muted" id="siem-bridge-status">SIEM bridge idle.</div>
+          </div>
+
+          <div class="card">
+            <div class="section-header-row">
+              <h3>Tamper-Evident Scan History (`runs.ndjson`)</h3>
+              <button type="button" class="btn btn-ghost" id="btn-verify-chain">Verify SHA-256 Chain</button>
+            </div>
+            <p class="muted" id="ledger-verify-detail">Loading hash chain status...</p>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Seq</th>
+                    <th>Timestamp</th>
+                    <th>Profile</th>
+                    <th>Target</th>
+                    <th>Posture</th>
+                    <th>Entry SHA-256</th>
+                  </tr>
+                </thead>
+                <tbody id="history-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- Right Collapsible Panel -->
+      <aside class="sidebar-right" id="sidebar-right">
+        <div class="right-tabs">
+          <button type="button" class="rtab active" data-rtab="telemetry">Live Telemetry</button>
+          <button type="button" class="rtab" data-rtab="mcphub">MCP Hub (61)</button>
+        </div>
+
+        <div class="right-pane active" id="rtab-telemetry">
+          <div class="section-header-row">
+            <span class="badge" id="sse-conn-badge">connecting...</span>
+            <button type="button" class="btn-link" id="btn-clear-events">Clear</button>
+          </div>
+          <div class="telemetry-log" id="telemetry-log"></div>
+        </div>
+
+        <div class="right-pane" id="rtab-mcphub">
+          <div class="toolbar-compact">
+            <input type="search" id="mcp-search" placeholder="Search 61 MCP tools...">
+            <button type="button" class="btn btn-ghost" id="btn-copy-mcp-cfg">Copy Config</button>
+          </div>
+          <div class="mcp-list" id="mcp-list"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Fail-Closed Waiver Modal -->
+  <dialog class="modal" id="waiver-modal">
+    <form method="dialog" class="modal-card" id="waiver-form">
+      <div class="modal-header">
+        <h3>Add Fail-Closed Waiver (`.raksa.yml`)</h3>
+        <button type="button" class="btn-link" id="btn-close-waiver">Close</button>
+      </div>
+      <p class="muted">Suppression requires an explicit audit rationale and UTC expiration date.</p>
+      <label class="modal-field">
+        <span>Rule ID</span>
+        <input type="text" id="waiver-rule-id" readonly>
+      </label>
+      <label class="modal-field">
+        <span>Target Substring</span>
+        <input type="text" id="waiver-target">
+      </label>
+      <label class="modal-field">
+        <span>Audit Reason (Required)</span>
+        <textarea id="waiver-reason" rows="2" required placeholder="Why this finding is accepted or mitigated externally"></textarea>
+      </label>
+      <label class="modal-field">
+        <span>Expires On (YYYY-MM-DD)</span>
+        <input type="date" id="waiver-expires" required>
+      </label>
+      <div class="modal-actions">
+        <span class="error-text" id="waiver-error"></span>
+        <button type="submit" class="btn btn-primary">Save Waiver</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Ctrl+K Command Palette Modal -->
+  <dialog class="modal" id="palette-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Command Palette</h3>
+        <button type="button" class="btn-link" id="btn-close-palette">Esc</button>
+      </div>
+      <input type="search" id="palette-input" placeholder="Type command, view, profile, or playbook...">
+      <div class="palette-results" id="palette-results"></div>
+    </div>
+  </dialog>
+
+  <script src="/assets/app.js"></script>
+</body>
+</html>
