@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "tool": "raksa-netguard",
+  "layer": "network-defense",
+  "generated_at": "2026-11-27T12:00:00Z",
+  "summary": { "total": 1, "critical": 0, "high": 1, "medium": 0, "low": 0, "info": 0 },
+  "findings": [
+    {
+      "id": "net-001-tcp-0.0.0.0-2375",
+      "rule_id": "NET-001",
+      "module": "baseline-auditor",
+      "layer": "network-defense",
+      "severity": "high",
+      "title": "Unapproved wildcard listening port exposed",
+      "description": "Port 2375/tcp is bound on 0.0.0.0 outside the authorized baseline policy.",
+      "target": "tcp://0.0.0.0:2375",
+      "remediation": "Bind administrative sockets to loopback or mTLS and restrict via host firewall.",
+      "mitre_d3fend": "D3-NI",
+      "timestamp": "2026-11-27T12:00:00Z"
+    }
+  ]
+}

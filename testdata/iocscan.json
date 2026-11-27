@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "tool": "raksa-iocscan",
+  "layer": "ioc-defense",
+  "generated_at": "2026-11-27T12:00:00Z",
+  "summary": { "total": 1, "critical": 0, "high": 0, "medium": 1, "low": 0, "info": 0 },
+  "findings": [
+    {
+      "id": "ioc-202-double-ext",
+      "rule_id": "IOC-202",
+      "module": "file-triage",
+      "layer": "ioc-defense",
+      "severity": "medium",
+      "title": "Extension masquerading in uploaded archive",
+      "description": "Artifact header does not match declared file extension.",
+      "target": "file://uploads/invoice.pdf.exe",
+      "remediation": "Quarantine mismatched upload and block executable MIME types.",
+      "mitre_d3fend": "D3-FA",
+      "timestamp": "2026-11-27T12:00:00Z"
+    }
+  ]
+}

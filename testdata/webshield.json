@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "tool": "raksa-webshield",
+  "layer": "web-defense",
+  "generated_at": "2026-11-27T12:00:00Z",
+  "summary": { "total": 1, "critical": 0, "high": 0, "medium": 1, "low": 0, "info": 0 },
+  "findings": [
+    {
+      "id": "web-003-csp-unsafe-inline",
+      "rule_id": "WEB-003",
+      "module": "csp-auditor",
+      "layer": "web-defense",
+      "severity": "medium",
+      "title": "CSP allows unsafe-inline script execution",
+      "description": "script-src permits unsafe-inline without strict nonces.",
+      "target": "https://app.example.test",
+      "remediation": "Replace unsafe-inline with per-request cryptographic nonces.",
+      "mitre_d3fend": "D3-SRA",
+      "timestamp": "2026-11-27T12:00:00Z"
+    }
+  ]
+}

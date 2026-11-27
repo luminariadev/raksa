@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "tool": "raksa-hostguard",
+  "layer": "host-hardening",
+  "generated_at": "2026-11-27T12:00:00Z",
+  "summary": { "total": 1, "critical": 0, "high": 1, "medium": 0, "low": 0, "info": 0 },
+  "findings": [
+    {
+      "id": "host-101-root-login",
+      "rule_id": "HOST-101",
+      "module": "ssh-auditor",
+      "layer": "host-hardening",
+      "severity": "high",
+      "title": "SSH PermitRootLogin enabled",
+      "description": "Direct root SSH authentication weakens host attribution and brute-force resistance.",
+      "target": "file:///etc/ssh/sshd_config",
+      "remediation": "Set PermitRootLogin no and restart sshd.",
+      "mitre_d3fend": "D3-LAM",
+      "timestamp": "2026-11-27T12:00:00Z"
+    }
+  ]
+}
