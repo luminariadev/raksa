@@ -1,9 +1,20 @@
 # Changelog
 
-All notable changes to `raksa` (Layer 7 Hybrid Orchestrator) will be documented in this file.
+All notable changes to `raksa` (Layer 7 Hybrid Orchestrator & Workbench) will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.2.0] - 2026-11-27
+
+### Added
+- **Embedded 3-Panel Hybrid Web Workbench (`internal/webui`, `raksa ui` / `serve`)**: Zero-external-dependency vanilla HTML/CSS/JS SPA compiled directly into the static Go binary via `go:embed`, featuring:
+  - Top Command Bar with target/profile controls, global posture gauge pill, and `Ctrl+K` Command Palette.
+  - Left Hybrid Explorer with L1-L6 status tree, selective multi-layer checkboxes, single-layer scan actions, and 1-click YAML Playbook execution.
+  - Center multi-tab workspace covering Posture Overview (SVG gauge + `runs.ndjson` sparkline), Findings Explorer (search/filters, raw evidence drawer, fail-closed `.raksa.yml` waiver modal, SARIF/HTML/JSON/Markdown exports), Attack-vs-Defense Matrix, Read-Only Fix Workbench, and SIEM Bridge & SHA-256 Ledger Verifier.
+  - Collapsible Right Panel with live Server-Sent Events (`/api/v1/events`) telemetry stream and searchable 61-tool MCP Hub directory.
+- **Hardened Workbench HTTP/SSE Server (`internal/server`)**: Enforces strict `Content-Security-Policy` (`default-src 'self'; script-src 'self'`), HSTS, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`, COOP/CORP headers, `HttpOnly; SameSite=Strict` token-to-cookie session bootstrap, and same-origin anti-CSRF protection on mutating endpoints.
+- **Release & CI Workflow Hardening**: Added `workflow_dispatch` tag input + validation to `.github/workflows/release.yml`, Node 24 JS action runtime enforcement (`FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true`), updated GitHub Actions v6/v7/v8 pins, added live `raksa ui` CSP + API smoke tests to `ci.yml`, and exposed port `8787` in `Dockerfile` and `deploy/docker-compose.yml`.
 
 ## [0.1.0] - 2026-11-27
 
@@ -14,5 +25,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Declarative Playbooks & Attack-vs-Defense Matrix (`internal/playbook`, `playbooks/`)**: 5 curated YAML playbooks (`pre-release-gate`, `host-hardening-audit`, `web-edge-defense`, `incident-triage`, `ddos-readiness`) and a 16-row defensive coverage matrix mapped to MITRE ATT&CK and D3FEND.
 - **Read-Only Fix Workbench & SIEM Bridge (`internal/remediate`, `internal/bridge`)**: Aggregates unified diffs from `hostguard`, `pipeguard`, and `webshield`, and integrates with `raksa-siem` REST APIs (`/healthz`, `/api/v1/ingest`, `/api/v1/posture`, `/api/v1/ledger/verify`).
 - **Federated 61-Tool MCP Hub (`internal/mcphub`)**: Single stdio JSON-RPC 2.0 server exposing 8 Layer 7 meta-tools and proxying all 53 upstream Layer 1-6 MCP tools.
-- **Reporters & Open-Core ABI (`internal/report`, `internal/ext`)**: Table, Schema v1 JSON, merged SARIF 2.1.0, Markdown PR summaries, standalone offline dark-mode HTML executive reports, and clean Open-Core interfaces under Apache-2.0.
+- **Reporters & Open-Core ABI (`internal/report`, `internal/ext`)**: Table, Schema v1 JSON, merged SARIF 2.1.0, Markdown PR summaries, standalone offline HTML/SVG executive reports, and clean Open-Core interfaces under Apache-2.0.
 - **CI/CD, Deployment & Distribution**: Multi-stage non-root distroless `Dockerfile` with `HEALTHCHECK`, hardened `deploy/docker-compose.yml`, SHA-256 verified install scripts (`scripts/install.sh`, `scripts/install.ps1`), reusable GitHub Action (`action/action.yml`), Agent Skill (`skills/raksa-defense-workbench/SKILL.md`), and GitHub Actions CI + 6-platform Release workflows.

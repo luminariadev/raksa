@@ -4,7 +4,7 @@
 
 ### Hybrid Defense-in-Depth Workbench & Blue Team Orchestrator (Layer 7)
 
-Unifying network, host, web, DevSecOps, IoC/malware, and SIEM defenses (**152 built-in rules | 61 MCP tools**) into one deterministic static binary.
+Unifying network, host, web, DevSecOps, IoC/malware, and SIEM defenses (**152 built-in rules | 61 MCP tools | Embedded 3-Panel Web UI**) into one deterministic static binary.
 
 [![CI](https://github.com/luminariadev/raksa/actions/workflows/ci.yml/badge.svg)](https://github.com/luminariadev/raksa/actions/workflows/ci.yml)
 [![Release](https://github.com/luminariadev/raksa/actions/workflows/release.yml/badge.svg)](https://github.com/luminariadev/raksa/actions/workflows/release.yml)
@@ -12,20 +12,21 @@ Unifying network, host, web, DevSecOps, IoC/malware, and SIEM defenses (**152 bu
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/go-1.24%2B-00ADD8.svg)](go.mod)
 [![MCP Tools](https://img.shields.io/badge/MCP-61%20tools-6f42c1.svg)](docs/ARCHITECTURE.md)
+[![Web UI](https://img.shields.io/badge/Web%20UI-embedded%203--panel-0ea5e9.svg)](docs/ARCHITECTURE.md)
 [![SARIF](https://img.shields.io/badge/SARIF-2.1.0-orange.svg)](docs/ARCHITECTURE.md)
 
 </div>
 
 ---
 
-**`raksa`** (from Sundanese/Sanskrit *raksa*, meaning to guard or protect) is the Layer 7 flagship umbrella orchestrator of the Raksa Security Suite. It pairs a **clusterless, deterministic Go control plane** with **Hybrid orchestration** across all six independent defensive layers (`v0.3.0`), unifying findings into **Schema v1**, **SARIF 2.1.0**, **Markdown PR summaries**, **offline HTML executive reports**, and a federated **61-tool MCP Hub**.
+**`raksa`** (from Sundanese/Sanskrit *raksa*, meaning to guard or protect) is the Layer 7 flagship umbrella orchestrator and workbench of the Raksa Security Suite. In **`v0.2.0`**, it combines a **clusterless, deterministic Go control plane** with an **embedded 3-panel Hybrid Web Workbench (`raksa ui`)**, unifying findings across Layers 1-6 into **Schema v1**, **SARIF 2.1.0**, **Markdown PR summaries**, **offline HTML executive reports**, and a federated **61-tool MCP Hub**.
 
 ## Why `raksa` Stands Out
 
-- **Hybrid Orchestration (Unified + Modular)**: Run a single one-command `Full Audit` across Layers 1-6 or isolate a targeted profile (`repo`, `host`, `web`, `incident`) and specific `--layers`. Missing tools degrade cleanly to `not_installed` with exact install commands instead of breaking workflows.
+- **Hybrid 3-Panel Workbench (`raksa ui`)**: Single-command `Full Audit (L1-L6)` paired with per-layer sidebar checkboxes, individual layer scans, YAML playbook triggers, `Ctrl+K` Command Palette, Attack-vs-Defense Matrix, Read-Only Diff Viewer, and live SSE telemetry embedded directly via `go:embed`.
 - **Zero-Cluster & Offline-First Core**: No mandatory OpenSearch, PostgreSQL, Docker daemon, or LLM token burn to scan and correlate. History is persisted locally in a SHA-256 hash-chained ledger (`runs.ndjson`).
-- **Federated 61-Tool MCP Hub**: One `raksa mcp` connection gives AI coding agents (Antigravity, Cursor, standard stdio MCP clients) access to **8 orchestrator meta-tools** plus **53 specialized Layer 1-6 tools**.
-- **Read-Only Patch Workbench**: Aggregates deterministic unified diffs across host (`raksa-hostguard`), IaC/CI (`raksa-pipeguard`), and edge headers/proxies (`raksa-webshield`) without auto-mutating files.
+- **Hardened Local Web Security**: `raksa ui` enforces strict Content-Security-Policy (`default-src 'self'; script-src 'self'`), HSTS, `X-Frame-Options: DENY`, `HttpOnly; SameSite=Strict` token-to-cookie sessions, and same-origin anti-CSRF validation.
+- **Federated 61-Tool MCP Hub**: One `raksa mcp` connection gives coding agents and assistants access to **8 orchestrator meta-tools** plus **53 specialized Layer 1-6 tools**.
 - **Apache-2.0 Open-Core Architecture**: Individual and team orchestration stays 100% open source; clean `internal/ext` interfaces enable private compliance packs and fleet extensions via Go build tags.
 
 ---
@@ -34,8 +35,10 @@ Unifying network, host, web, DevSecOps, IoC/malware, and SIEM defenses (**152 bu
 
 ```mermaid
 flowchart TB
+    WebUI["Embedded 3-Panel Web Workbench (raksa ui)"] --> Server["Hardened REST + SSE Server (internal/server)"]
     CLI["raksa CLI / GHA / Agent Skills"] --> Core["raksa Control Plane (Static Go Binary)"]
     MCP["Coding Agents / Local Assistants"] --> MCPHub["Unified MCP Hub (61 Tools)"]
+    Server --> Core
     MCPHub --> Core
     Core --> Runner["Hybrid Parallel Runner & SHA-256 Installer"]
     Core --> Agg["Schema v1 Merger, Dedup & 0-100 Posture"]
@@ -59,28 +62,34 @@ flowchart TB
 | **L4** | [raksa-pipeguard](https://github.com/luminariadev/raksa-pipeguard) | Go | `33` | `9` | Secrets, CycloneDX/SPDX SBOM, OSV/KEV/EPSS CVEs, OCI image scan, IaC & CI |
 | **L5** | [raksa-iocscan](https://github.com/luminariadev/raksa-iocscan) | Python | `27` | `10` | Pure-Python YARA engine, Imphash/FastCDC, PE/ELF/Mach-O, document & archive triage |
 | **L6** | [raksa-siem](https://github.com/luminariadev/raksa-siem) | Go + Py | `23` | `12` | 13-format log normalizer, Sigma/EQL correlator, attack graph, hash-chained ledger |
-| **L7** | **`raksa`** (This Repo) | Go | - | `+8` | Hybrid orchestrator, posture grading, YAML playbooks, HTML/SARIF, **61-tool MCP Hub** |
+| **L7** | **`raksa`** (This Repo) | Go | - | `+8` | Hybrid orchestrator, embedded 3-panel Web Workbench, YAML playbooks, **61-tool MCP Hub** |
 
 ---
 
 ## 30-Second Quickstart
 
-### Build or Install Verified Binaries
+### Build or Launch Embedded Web Workbench
 
 ```bash
 # Build raksa from source (Go 1.24+)
 go build -trimpath -o raksa ./cmd/raksa
 
-# Preview download URLs & SHA-256 checksums for Layer 1-6 tools
-./raksa install --dry-run
+# Launch the embedded 3-panel Hybrid Web Workbench on http://127.0.0.1:8787
+./raksa ui --path .
 
-# Inspect installed tools, versions, and SHA-256 digests
-./raksa doctor
+# Or preview offline with included multi-layer fixtures
+./raksa ui --from-reports ./testdata
 ```
 
-### Hybrid Scans & Executive Reporting
+### Hybrid CLI Scans & Executive Reporting
 
 ```bash
+# Inspect installed tools, versions, and SHA-256 digests
+raksa doctor
+
+# Preview download URLs & SHA-256 checksums for Layer 1-6 tools
+raksa install --dry-run
+
 # Run Hybrid repository/DevSecOps profile across installed layers
 raksa scan --path . --profile repo --format table --fail-on high
 
@@ -126,7 +135,7 @@ Orchestrator tools (`raksa_doctor`, `raksa_full_audit`, `raksa_posture_summary`,
 
 ```yaml
 - name: Run Raksa Hybrid Defense Gate
-  uses: luminariadev/raksa/action@v0.1.0
+  uses: luminariadev/raksa/action@v0.2.0
   with:
     path: .
     profile: repo

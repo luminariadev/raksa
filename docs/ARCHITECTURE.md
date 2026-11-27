@@ -7,7 +7,7 @@
    - *Unified*: `raksa scan --profile full` aggregates Layer 1-5 findings, correlates them through Layer 6 `raksa-siem correlate`, computes global `0-100 (A+..F)` posture, and updates the SHA-256 hash-chained `runs.ndjson` ledger.
    - *Modular*: `--profile repo|host|web|incident` or `--layers ...` isolates individual layers without wasting runtime.
    - *Graceful*: Uninstalled binaries produce structured `not_installed` layer status records with exact install guidance.
-3. **Single Federated Control Plane for Humans & Agents**: The same orchestration primitives drive the CLI (`cmd/raksa`), GitHub Action (`action/action.yml`), and the 61-tool stdio MCP Hub (`internal/mcphub`).
+3. **Single Control Plane for CLI, Web Workbench, & MCP**: The same orchestration primitives drive `cmd/raksa`, the embedded 3-panel Web Workbench (`raksa ui`), GitHub Actions (`action/action.yml`), and the 61-tool stdio MCP Hub (`internal/mcphub`).
 
 ## Package Responsibilities
 
@@ -24,8 +24,9 @@
 | `internal/bridge` | HTTP client connecting `raksa` to `raksa-siem` REST APIs (`/healthz`, `/api/v1/ingest`, `/api/v1/posture`, `/api/v1/ledger/verify`). |
 | `internal/mcphub` | Newline-delimited JSON-RPC 2.0 server hosting 8 local tools and proxying 53 upstream L1-L6 tools. |
 | `internal/report` | Table, JSON, merged SARIF 2.1.0, Markdown PR summary, and offline HTML/SVG executive reporters. |
+| `internal/webui` | Embedded zero-dependency HTML/CSS/vanilla-JS assets powering the 3-panel Hybrid Web Workbench (`go:embed`). |
+| `internal/server` | Hardened HTTP + SSE telemetry server enforcing strict CSP, `HttpOnly; SameSite=Strict` cookies, token auth, and anti-CSRF checks. |
 
-## Roadmap Preview (`v0.2.0` -> `v0.3.0`)
+## Next Milestone Preview (`v0.3.0`)
 
-- **`v0.2.0` Web Workbench (`raksa ui`)**: Serves an embedded React + TypeScript 3-panel Hybrid workbench over `http://127.0.0.1` (`//go:embed`) backed by local SQLite WAL history and live SSE streaming.
-- **`v0.3.0` Desktop App (`Tauri v2`) & BYOK AI Assistant**: Wraps the same frontend + `raksa` Go sidecar into native `.msi`/`.dmg`/`.AppImage` installers alongside a read-only BYOK AI Defense Assistant wired to the 61 MCP tools.
+- **`v0.3.0` Desktop App (`Tauri v2`), BYOK AI Assistant & TUI**: Wraps the same Web Workbench assets + `raksa` Go sidecar into native `.msi`/`.dmg`/`.AppImage` desktop installers alongside a read-only BYOK AI Defense Assistant wired to the 61 MCP tools and an interactive `raksa tui` for headless SSH workflows.

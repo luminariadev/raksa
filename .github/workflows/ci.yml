@@ -9,14 +9,17 @@ on:
 permissions:
   contents: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   go-test-and-vet:
     name: Go Format, Vet, Race Tests & Vulncheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
 
@@ -40,7 +43,7 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
           "$(go env GOPATH)/bin/govulncheck" ./...
 
-      - name: Verify CLI Hybrid aggregation and SARIF/HTML smoke gates
+      - name: Verify CLI Hybrid aggregation, SARIF/HTML, and Web UI smoke gates
         run: |
           CGO_ENABLED=0 go build -trimpath -o /tmp/raksa ./cmd/raksa
           /tmp/raksa version
@@ -61,11 +64,23 @@ jobs:
           /tmp/raksa scan --from-reports testdata --format html --fail-on none --no-history > /tmp/suite.html
           grep -q 'Raksa Flagship Suite Report' /tmp/suite.html
 
+          /tmp/raksa ui --listen 127.0.0.1:18787 --from-reports testdata --no-auth --no-open > /tmp/ui.log 2>&1 &
+          UI_PID=$!
+          trap 'kill "$UI_PID" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 20); do
+            if curl -fsS http://localhost:18787/healthz > /dev/null 2>&1; then
+              break
+            fi
+            sleep 0.25
+          done
+          curl -fsSI http://localhost:18787/ | grep -qi "Content-Security-Policy"
+          curl -fsS http://localhost:18787/api/v1/mcp-catalog | grep -q '"total":61'
+
   docker-smoke:
     name: Distroless Container Build & Smoke Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build distroless image
         run: docker build -t raksa:ci .

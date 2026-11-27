@@ -25,32 +25,36 @@ services:
     restart: unless-stopped
 
   raksa:
-    image: ghcr.io/luminariadev/raksa:v0.1.0
+    image: ghcr.io/luminariadev/raksa:v0.2.0
     user: "65532:65532"
     read_only: true
     cap_drop:
       - ALL
     security_opt:
       - no-new-privileges:true
+    ports:
+      - "127.0.0.1:8787:8787"
     depends_on:
       - raksa-siem
     environment:
       RAKSA_SIEM_TOKEN: "${RAKSA_SIEM_TOKEN:-}"
+      RAKSA_UI_TOKEN: "${RAKSA_UI_TOKEN:-}"
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=64m
     volumes:
       - ./testdata:/workspace/testdata:ro
     command:
-      - scan
+      - ui
+      - --listen
+      - 0.0.0.0:8787
       - --from-reports
       - /workspace/testdata
       - --siem-url
       - http://raksa-siem:8484
-      - --format
-      - table
-      - --fail-on
-      - none
-      - --no-history
+      - --token-env
+      - RAKSA_UI_TOKEN
+      - --no-open
+    restart: unless-stopped
 
 volumes:
   raksa_ledger:

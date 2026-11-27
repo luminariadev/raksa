@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${RAKSA_VERSION:-v0.1.0}"
+VERSION="${RAKSA_VERSION:-v0.2.0}"
 INSTALL_DIR="${RAKSA_BIN_DIR:-$HOME/.raksa/bin}"
 
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"

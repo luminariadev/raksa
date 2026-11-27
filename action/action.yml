@@ -28,7 +28,7 @@ inputs:
   version:
     description: Raksa Layer 7 release tag to install
     required: false
-    default: v0.1.0
+    default: v0.2.0
 
 runs:
   using: composite

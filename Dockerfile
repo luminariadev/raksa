@@ -8,7 +8,7 @@ COPY cmd ./cmd
 COPY internal ./internal
 COPY playbooks ./playbooks
 
-ARG VERSION=0.1.0
+ARG VERSION=0.2.0
 ARG COMMIT=docker
 ARG BUILD_DATE=unknown
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
@@ -18,6 +18,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
 FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /workspace
 COPY --from=builder /out/raksa /usr/local/bin/raksa
+EXPOSE 8787
 USER 65532:65532
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 CMD ["/usr/local/bin/raksa", "version"]
 ENTRYPOINT ["/usr/local/bin/raksa"]

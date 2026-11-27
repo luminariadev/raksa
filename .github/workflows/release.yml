@@ -4,13 +4,44 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish (e.g. v0.2.0)"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
+  prepare:
+    name: Resolve and Validate Release Tag
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+    steps:
+      - name: Validate tag format
+        id: resolve
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Error: invalid semver release tag '$TAG' (expected vX.Y.Z)"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    needs: prepare
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -41,9 +72,11 @@ jobs:
             archive: zip
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
 
@@ -58,7 +91,8 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          TAG="${{ needs.prepare.outputs.tag }}"
+          VERSION="${TAG#v}"
           BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           mkdir -p dist
           go build -trimpath \
@@ -68,8 +102,8 @@ jobs:
 
       - name: Package release archive
         run: |
-          VERSION="${GITHUB_REF_NAME}"
-          PKG_NAME="raksa-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}"
+          TAG="${{ needs.prepare.outputs.tag }}"
+          PKG_NAME="raksa-${TAG}-${{ matrix.goos }}-${{ matrix.goarch }}"
           mkdir -p "release/${PKG_NAME}"
           cp "dist/raksa${{ matrix.ext }}" README.md LICENSE "release/${PKG_NAME}/"
           mkdir -p artifacts
@@ -79,21 +113,23 @@ jobs:
             tar -czf "artifacts/${PKG_NAME}.tar.gz" -C release "${PKG_NAME}"
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: raksa-${{ matrix.goos }}-${{ matrix.goarch }}
           path: artifacts/*
 
   release:
     name: Create GitHub Release
-    needs: build
+    needs: [prepare, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: downloaded
 
@@ -107,7 +143,7 @@ jobs:
       - name: Publish Release with Assets
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ github.ref_name }}
+          TAG_NAME: ${{ needs.prepare.outputs.tag }}
         run: |
           cd release-files
           for attempt in 1 2 3 4; do
