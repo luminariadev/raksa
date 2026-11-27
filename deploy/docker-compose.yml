@@ -25,7 +25,7 @@ services:
     restart: unless-stopped
 
   raksa:
-    image: ghcr.io/luminariadev/raksa:v0.2.0
+    image: ghcr.io/luminariadev/raksa:v0.3.0
     user: "65532:65532"
     read_only: true
     cap_drop:

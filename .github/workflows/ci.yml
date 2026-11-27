@@ -43,7 +43,7 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
           "$(go env GOPATH)/bin/govulncheck" ./...
 
-      - name: Verify CLI Hybrid aggregation, SARIF/HTML, and Web UI smoke gates
+      - name: Verify CLI Hybrid aggregation, TUI, SARIF/HTML, and Web UI + Assistant smoke gates
         run: |
           CGO_ENABLED=0 go build -trimpath -o /tmp/raksa ./cmd/raksa
           /tmp/raksa version
@@ -52,6 +52,8 @@ jobs:
           /tmp/raksa playbooks list --format json > /dev/null
           /tmp/raksa install --dry-run --layers netguard,pipeguard --format json > /dev/null
           /tmp/raksa scan --from-reports testdata/clean.json --format json --fail-on low --no-history
+          printf "/matrix\n/quit\n" | /tmp/raksa tui --from-reports testdata --history /tmp/tui-runs.ndjson | grep -q "D3-NTA"
+
           set +e
           /tmp/raksa scan --from-reports testdata --format sarif --fail-on high --no-history > /tmp/suite.sarif
           rc=$?
@@ -75,6 +77,22 @@ jobs:
           done
           curl -fsSI http://localhost:18787/ | grep -qi "Content-Security-Policy"
           curl -fsS http://localhost:18787/api/v1/mcp-catalog | grep -q '"total":61'
+          curl -fsS -X POST -H "Content-Type: application/json" -d '{"mode":"local","prompt":"Prioritize top risks"}' http://localhost:18787/api/v1/assistant/chat | grep -q 'raksa_posture_summary'
+
+  desktop-sidecar-check:
+    name: Tauri Config & Rust Sidecar Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+
+      - name: Validate Tauri config JSON & run pure-std sidecar tests
+        run: |
+          python3 -m json.tool desktop/src-tauri/tauri.conf.json > /dev/null
+          python3 -m json.tool desktop/src-tauri/capabilities/default.json > /dev/null
+          rustc --test desktop/src-tauri/src/sidecar.rs -o /tmp/sidecar_test
+          /tmp/sidecar_test
 
   docker-smoke:
     name: Distroless Container Build & Smoke Test

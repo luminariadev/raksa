@@ -4,7 +4,7 @@
 
 ### Hybrid Defense-in-Depth Workbench & Blue Team Orchestrator (Layer 7)
 
-Unifying network, host, web, DevSecOps, IoC/malware, and SIEM defenses (**152 built-in rules | 61 MCP tools | Embedded 3-Panel Web UI**) into one deterministic static binary.
+Unifying network, host, web, DevSecOps, IoC/malware, and SIEM defenses (**152 built-in rules | 61 MCP tools | Embedded Web UI | Tauri v2 Desktop | BYOK AI Assistant**) into one deterministic control plane.
 
 [![CI](https://github.com/luminariadev/raksa/actions/workflows/ci.yml/badge.svg)](https://github.com/luminariadev/raksa/actions/workflows/ci.yml)
 [![Release](https://github.com/luminariadev/raksa/actions/workflows/release.yml/badge.svg)](https://github.com/luminariadev/raksa/actions/workflows/release.yml)
@@ -13,21 +13,27 @@ Unifying network, host, web, DevSecOps, IoC/malware, and SIEM defenses (**152 bu
 [![Go Version](https://img.shields.io/badge/go-1.24%2B-00ADD8.svg)](go.mod)
 [![MCP Tools](https://img.shields.io/badge/MCP-61%20tools-6f42c1.svg)](docs/ARCHITECTURE.md)
 [![Web UI](https://img.shields.io/badge/Web%20UI-embedded%203--panel-0ea5e9.svg)](docs/ARCHITECTURE.md)
+[![Desktop](https://img.shields.io/badge/Desktop-Tauri%20v2-1f6feb.svg)](desktop/README.md)
 [![SARIF](https://img.shields.io/badge/SARIF-2.1.0-orange.svg)](docs/ARCHITECTURE.md)
 
 </div>
 
+<p align="center">
+  <img src="docs/images/raksa-workbench.png" alt="Raksa 3-Panel Hybrid Defense Workbench" width="960">
+</p>
+
 ---
 
-**`raksa`** (from Sundanese/Sanskrit *raksa*, meaning to guard or protect) is the Layer 7 flagship umbrella orchestrator and workbench of the Raksa Security Suite. In **`v0.2.0`**, it combines a **clusterless, deterministic Go control plane** with an **embedded 3-panel Hybrid Web Workbench (`raksa ui`)**, unifying findings across Layers 1-6 into **Schema v1**, **SARIF 2.1.0**, **Markdown PR summaries**, **offline HTML executive reports**, and a federated **61-tool MCP Hub**.
+**`raksa`** (from Sundanese/Sanskrit *raksa*, meaning to guard or protect) is the Layer 7 flagship umbrella orchestrator and workbench of the Raksa Security Suite. In **`v0.3.0`**, it reaches full ecosystem version parity with Layers 1-6, uniting a **clusterless Go CLI & TUI** with a **3-panel Hybrid Web Workbench (`raksa ui`)**, a **read-only BYOK AI Defense Assistant**, and a **pure-Rust `Tauri v2` Desktop App (`desktop/`)**.
 
 ## Why `raksa` Stands Out
 
-- **Hybrid 3-Panel Workbench (`raksa ui`)**: Single-command `Full Audit (L1-L6)` paired with per-layer sidebar checkboxes, individual layer scans, YAML playbook triggers, `Ctrl+K` Command Palette, Attack-vs-Defense Matrix, Read-Only Diff Viewer, and live SSE telemetry embedded directly via `go:embed`.
-- **Zero-Cluster & Offline-First Core**: No mandatory OpenSearch, PostgreSQL, Docker daemon, or LLM token burn to scan and correlate. History is persisted locally in a SHA-256 hash-chained ledger (`runs.ndjson`).
-- **Hardened Local Web Security**: `raksa ui` enforces strict Content-Security-Policy (`default-src 'self'; script-src 'self'`), HSTS, `X-Frame-Options: DENY`, `HttpOnly; SameSite=Strict` token-to-cookie sessions, and same-origin anti-CSRF validation.
-- **Federated 61-Tool MCP Hub**: One `raksa mcp` connection gives coding agents and assistants access to **8 orchestrator meta-tools** plus **53 specialized Layer 1-6 tools**.
-- **Apache-2.0 Open-Core Architecture**: Individual and team orchestration stays 100% open source; clean `internal/ext` interfaces enable private compliance packs and fleet extensions via Go build tags.
+- **Hybrid 3-Panel Workbench (`raksa ui` & `Tauri v2` Desktop)**: Run a single `Full Audit (L1-L6)` or drill down via per-layer sidebar checkboxes, individual layer scans, YAML playbooks, `Ctrl+K` Command Palette, Attack-vs-Defense Matrix, Read-Only Diff Viewer, and live SSE telemetry.
+- **Read-Only BYOK AI Defense Assistant (`internal/assistant`)**: Ships with an **Offline Deterministic** mode (zero API keys required), **Local Ollama** (`http://localhost:11434`), and standard external **BYOK** endpoint adapters (`RAKSA_AI_ENDPOINT` + `RAKSA_AI_API_KEY`). Every reply cites verified Tool Call Cards and never auto-mutates files.
+- **Interactive Terminal Workbench (`raksa tui`)**: Zero-dependency keyboard/slash-command Blue Team shell for headless Linux hosts and SSH sessions.
+- **Zero-Cluster Core & Hash-Chained Ledger**: No mandatory OpenSearch, PostgreSQL, or Docker daemon to scan and correlate. Run history is stored locally in tamper-evident `runs.ndjson`.
+- **Hardened Web & Desktop Security (`100/100 A+`)**: Enforces strict CSP (`default-src 'self'; script-src 'self'`), HSTS, `X-Frame-Options: DENY`, `HttpOnly; SameSite=Strict` token-to-cookie sessions, anti-CSRF checks, and a `#![forbid(unsafe_code)]` Rust desktop sidecar.
+- **Federated 61-Tool MCP Hub**: One `raksa mcp` server exposes **8 orchestrator meta-tools** plus **53 specialized Layer 1-6 tools**.
 
 ---
 
@@ -35,9 +41,13 @@ Unifying network, host, web, DevSecOps, IoC/malware, and SIEM defenses (**152 bu
 
 ```mermaid
 flowchart TB
-    WebUI["Embedded 3-Panel Web Workbench (raksa ui)"] --> Server["Hardened REST + SSE Server (internal/server)"]
-    CLI["raksa CLI / GHA / Agent Skills"] --> Core["raksa Control Plane (Static Go Binary)"]
-    MCP["Coding Agents / Local Assistants"] --> MCPHub["Unified MCP Hub (61 Tools)"]
+    Desktop["Tauri v2 Native Desktop Shell (desktop/)"] --> Server["Hardened REST + SSE Server (internal/server)"]
+    WebUI["Embedded 3-Panel Web Workbench (raksa ui)"] --> Server
+    TUI["Interactive Terminal Workbench (raksa tui)"] --> Core["raksa Control Plane (Static Go Binary)"]
+    CLI["raksa CLI / GHA / Agent Skills"] --> Core
+    Assistant["Read-Only AI Assistant (Local / Ollama / BYOK)"] --> Core
+    MCP["Coding Agents / Local MCP Clients"] --> MCPHub["Unified MCP Hub (61 Tools)"]
+    Server --> Assistant
     Server --> Core
     MCPHub --> Core
     Core --> Runner["Hybrid Parallel Runner & SHA-256 Installer"]
@@ -52,34 +62,39 @@ flowchart TB
     SIEMBridge --> L6["L6 SIEM (23 rules)"]
 ```
 
-## Covered Defensive Ecosystem (Layers 1-6)
+## Covered Defensive Ecosystem (Uniform `v0.3.0`)
 
-| Layer | Repository | Language | Rules | MCP Tools | Defensive Domain |
-| :--- | :--- | :--- | ---: | ---: | :--- |
-| **L1** | [raksa-netguard](https://github.com/luminariadev/raksa-netguard) | Go | `10` | `5` | Open-port baseline auditing, vertical/horizontal/distributed scan detection |
-| **L2** | [raksa-hostguard](https://github.com/luminariadev/raksa-hostguard) | Rust | `29` | `9` | HMAC-signed event-driven FIM, Linux/SSH/systemd/Docker CIS & `fix-preview` |
-| **L3** | [raksa-webshield](https://github.com/luminariadev/raksa-webshield) | Go + TS | `30` | `8` | HTTP headers, CSP/CORS/TLS audit, Nginx/Caddy/Ingress lint, semantic WAF sidecar |
-| **L4** | [raksa-pipeguard](https://github.com/luminariadev/raksa-pipeguard) | Go | `33` | `9` | Secrets, CycloneDX/SPDX SBOM, OSV/KEV/EPSS CVEs, OCI image scan, IaC & CI |
-| **L5** | [raksa-iocscan](https://github.com/luminariadev/raksa-iocscan) | Python | `27` | `10` | Pure-Python YARA engine, Imphash/FastCDC, PE/ELF/Mach-O, document & archive triage |
-| **L6** | [raksa-siem](https://github.com/luminariadev/raksa-siem) | Go + Py | `23` | `12` | 13-format log normalizer, Sigma/EQL correlator, attack graph, hash-chained ledger |
-| **L7** | **`raksa`** (This Repo) | Go | - | `+8` | Hybrid orchestrator, embedded 3-panel Web Workbench, YAML playbooks, **61-tool MCP Hub** |
+| Layer | Repository | Language | Version | Rules | MCP Tools | Defensive Domain |
+| :--- | :--- | :--- | :---: | ---: | ---: | :--- |
+| **L1** | [raksa-netguard](https://github.com/luminariadev/raksa-netguard) | Go | `v0.3.0` | `10` | `5` | Open-port baseline auditing, vertical/horizontal/distributed scan detection |
+| **L2** | [raksa-hostguard](https://github.com/luminariadev/raksa-hostguard) | Rust | `v0.3.0` | `29` | `9` | HMAC-signed event-driven FIM, Linux/SSH/systemd/Docker CIS & `fix-preview` |
+| **L3** | [raksa-webshield](https://github.com/luminariadev/raksa-webshield) | Go + TS | `v0.3.0` | `30` | `8` | HTTP headers, CSP/CORS/TLS audit, Nginx/Caddy/Ingress lint, semantic WAF sidecar |
+| **L4** | [raksa-pipeguard](https://github.com/luminariadev/raksa-pipeguard) | Go | `v0.3.0` | `33` | `9` | Secrets, CycloneDX/SPDX SBOM, OSV/KEV/EPSS CVEs, OCI image scan, IaC & CI |
+| **L5** | [raksa-iocscan](https://github.com/luminariadev/raksa-iocscan) | Python | `v0.3.0` | `27` | `10` | Pure-Python YARA engine, Imphash/FastCDC, PE/ELF/Mach-O, document & archive triage |
+| **L6** | [raksa-siem](https://github.com/luminariadev/raksa-siem) | Go + Py | `v0.3.0` | `23` | `12` | 13-format log normalizer, Sigma/EQL correlator, attack graph, hash-chained ledger |
+| **L7** | **`raksa`** (This Repo) | Go + Rust | **`v0.3.0`** | - | `+8` | Hybrid orchestrator, Web Workbench, AI Defense Assistant, TUI, Desktop App |
 
 ---
 
 ## 30-Second Quickstart
 
-### Build or Launch Embedded Web Workbench
+### Build or Launch Workbench (Web, TUI, Desktop)
 
 ```bash
 # Build raksa from source (Go 1.24+)
 go build -trimpath -o raksa ./cmd/raksa
 
-# Launch the embedded 3-panel Hybrid Web Workbench on http://127.0.0.1:8787
+# Launch embedded 3-panel Web Workbench + AI Defense Assistant
 ./raksa ui --path .
 
 # Or preview offline with included multi-layer fixtures
 ./raksa ui --from-reports ./testdata
+
+# Launch interactive terminal workbench for SSH / headless Linux hosts
+./raksa tui --path .
 ```
+
+For native Windows/macOS/Linux desktop builds, see [desktop/README.md](desktop/README.md).
 
 ### Hybrid CLI Scans & Executive Reporting
 
@@ -135,7 +150,7 @@ Orchestrator tools (`raksa_doctor`, `raksa_full_audit`, `raksa_posture_summary`,
 
 ```yaml
 - name: Run Raksa Hybrid Defense Gate
-  uses: luminariadev/raksa/action@v0.2.0
+  uses: luminariadev/raksa/action@v0.3.0
   with:
     path: .
     profile: repo
@@ -151,4 +166,5 @@ Orchestrator tools (`raksa_doctor`, `raksa_full_audit`, `raksa_posture_summary`,
 - [Open-Core & Enterprise Extension Model](docs/OPEN_CORE_MODEL.md)
 - [Defensive Threat Model](docs/THREAT_MODEL.md)
 - [Benchmarks & Verification Targets](docs/BENCHMARKS.md)
+- [Desktop App Shell Guide](desktop/README.md)
 - [Changelog](CHANGELOG.md) | [Security Policy](SECURITY.md) | [Contributing](CONTRIBUTING.md)
