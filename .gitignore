@@ -1,0 +1,21 @@
+# Build outputs and binaries
+/raksa
+/raksa.exe
+/bin/
+/dist/
+/artifacts/
+*.exe
+*.out
+*.sarif
+*.html
+coverage.*
+
+# Local Raksa state
+.raksa/
+runs.ndjson
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

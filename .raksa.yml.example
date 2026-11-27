@@ -1,0 +1,21 @@
+# Example .raksa.yml configuration for Raksa Layer 7 Orchestrator
+profile: full
+fail_on: high
+per_layer_timeout_sec: 120
+max_concurrency: 4
+
+# Optional layer allowlist/blocklist (Hybrid selective mode)
+enabled_layers: []
+disabled_layers: []
+
+siem:
+  endpoint: http://127.0.0.1:8484
+  token_env: RAKSA_SIEM_TOKEN
+  auto_ingest: false
+
+# Fail-closed waivers require non-empty reason and valid YYYY-MM-DD expires_on
+waivers:
+  - rule_id: NET-002
+    target_contains: 127.0.0.1:8484
+    reason: Local loopback telemetry listener authorized during lab development
+    expires_on: 2027-12-31
