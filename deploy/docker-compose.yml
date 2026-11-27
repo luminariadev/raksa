@@ -1,0 +1,56 @@
+services:
+  raksa-siem:
+    image: ghcr.io/luminariadev/raksa-siem:v0.3.0
+    user: "65532:65532"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:8484:8484"
+    environment:
+      RAKSA_SIEM_BIND: "0.0.0.0:8484"
+      RAKSA_SIEM_TOKEN: "${RAKSA_SIEM_TOKEN:-}"
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    volumes:
+      - raksa_ledger:/var/lib/raksa-siem
+    command:
+      - serve
+      - --listen
+      - 0.0.0.0:8484
+      - --ledger-dir
+      - /var/lib/raksa-siem
+    restart: unless-stopped
+
+  raksa:
+    image: ghcr.io/luminariadev/raksa:v0.1.0
+    user: "65532:65532"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - raksa-siem
+    environment:
+      RAKSA_SIEM_TOKEN: "${RAKSA_SIEM_TOKEN:-}"
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    volumes:
+      - ./testdata:/workspace/testdata:ro
+    command:
+      - scan
+      - --from-reports
+      - /workspace/testdata
+      - --siem-url
+      - http://raksa-siem:8484
+      - --format
+      - table
+      - --fail-on
+      - none
+      - --no-history
+
+volumes:
+  raksa_ledger:

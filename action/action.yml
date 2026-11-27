@@ -1,0 +1,77 @@
+name: Raksa Defense-in-Depth Suite
+description: Run the Raksa Layer 7 Hybrid security orchestrator across repository, host, web, and IoC layers.
+inputs:
+  path:
+    description: Target workspace directory to scan
+    required: false
+    default: "."
+  profile:
+    description: Hybrid scan profile (full, repo, host, web, incident)
+    required: false
+    default: repo
+  layers:
+    description: Optional comma-separated layer override (netguard,hostguard,webshield,pipeguard,iocscan,siem)
+    required: false
+    default: ""
+  format:
+    description: Output format (table, json, sarif, markdown, html)
+    required: false
+    default: sarif
+  fail-on:
+    description: Minimum severity to fail workflow (critical, high, medium, low, info, none)
+    required: false
+    default: high
+  output:
+    description: Optional output file path (e.g. raksa-results.sarif)
+    required: false
+    default: raksa-results.sarif
+  version:
+    description: Raksa Layer 7 release tag to install
+    required: false
+    default: v0.1.0
+
+runs:
+  using: composite
+  steps:
+    - name: Download and verify raksa CLI
+      shell: bash
+      env:
+        RAKSA_TAG: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        ARCH="$(uname -m)"
+        case "$ARCH" in
+          x86_64) GOARCH="amd64" ;;
+          aarch64|arm64) GOARCH="arm64" ;;
+          *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;;
+        esac
+        PKG="raksa-${RAKSA_TAG}-linux-${GOARCH}"
+        URL_BASE="https://github.com/luminariadev/raksa/releases/download/${RAKSA_TAG}"
+        TMP_DIR="$(mktemp -d)"
+        trap 'rm -rf "$TMP_DIR"' EXIT
+        curl -fsSL "${URL_BASE}/SHA256SUMS.txt" -o "${TMP_DIR}/SHA256SUMS.txt"
+        curl -fsSL "${URL_BASE}/${PKG}.tar.gz" -o "${TMP_DIR}/${PKG}.tar.gz"
+        (cd "$TMP_DIR" && grep " ${PKG}.tar.gz\$" SHA256SUMS.txt | sha256sum -c -)
+        tar -xzf "${TMP_DIR}/${PKG}.tar.gz" -C "$TMP_DIR"
+        install -m 0755 "${TMP_DIR}/${PKG}/raksa" "${RUNNER_TEMP}/raksa"
+        echo "${RUNNER_TEMP}" >> "$GITHUB_PATH"
+
+    - name: Run Raksa Hybrid Suite scan
+      shell: bash
+      env:
+        RAKSA_PATH: ${{ inputs.path }}
+        RAKSA_PROFILE: ${{ inputs.profile }}
+        RAKSA_LAYERS: ${{ inputs.layers }}
+        RAKSA_FORMAT: ${{ inputs.format }}
+        RAKSA_FAIL_ON: ${{ inputs.fail-on }}
+        RAKSA_OUTPUT: ${{ inputs.output }}
+      run: |
+        set -euo pipefail
+        ARGS=(scan --path "$RAKSA_PATH" --profile "$RAKSA_PROFILE" --format "$RAKSA_FORMAT" --fail-on "$RAKSA_FAIL_ON" --no-history)
+        if [ -n "$RAKSA_LAYERS" ]; then
+          ARGS+=(--layers "$RAKSA_LAYERS")
+        fi
+        if [ -n "$RAKSA_OUTPUT" ]; then
+          ARGS+=(--output "$RAKSA_OUTPUT")
+        fi
+        "${RUNNER_TEMP}/raksa" "${ARGS[@]}"
