@@ -4,13 +4,19 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
 	"os"
+	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/luminariadev/raksa/internal/aggregator"
@@ -23,6 +29,7 @@ import (
 	"github.com/luminariadev/raksa/internal/report"
 	"github.com/luminariadev/raksa/internal/runner"
 	"github.com/luminariadev/raksa/internal/schema"
+	"github.com/luminariadev/raksa/internal/server"
 	"github.com/luminariadev/raksa/internal/store"
 )
 
@@ -62,6 +69,8 @@ func run(args []string, stdout, stderr io.Writer, stdin io.Reader) int {
 		return runAttackMatrix(rest, stdout, stderr)
 	case "mcp":
 		return runMCP(rest, stdout, stderr, stdin)
+	case "ui", "serve":
+		return runUI(rest, stdout, stderr)
 	case "init":
 		return runInit(rest, stdout, stderr)
 	case "version", "-v", "--version":
@@ -89,6 +98,7 @@ Subcommands:
   fix-preview    Aggregate read-only unified remediation diffs from Layer 2-4 tools
   playbooks      List, verify, or execute curated defensive YAML playbooks
   attack-matrix  Print Attack-vs-Defense countermeasure coverage across Raksa layers
+  ui             Launch embedded 3-panel Hybrid Web Workbench server (alias: serve)
   mcp            Start unified stdio JSON-RPC 2.0 MCP hub (%d tools)
   init           Generate starter .raksa.yml governance config
   version        Print build, schema, and Open-Core edition metadata
@@ -617,6 +627,108 @@ waivers: []
 	}
 	fmt.Fprintf(stdout, "Wrote starter %s\n", *outPath)
 	return exitOK
+}
+
+func runUI(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("ui", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	listenAddr := fs.String("listen", "127.0.0.1:8787", "HTTP bind address for Raksa Web Workbench")
+	workspace := fs.String("path", ".", "Workspace directory path")
+	fromReports := fs.String("from-reports", "", "Optional initial upstream reports file/directory")
+	binDir := fs.String("bin-dir", "", "Optional directory containing Layer 1-6 binaries")
+	historyPath := fs.String("history", store.DefaultHistoryPath(), "Path to SHA-256 hash-chained runs.ndjson")
+	siemURL := fs.String("siem-url", "", "Optional raksa-siem HTTP endpoint")
+	tokenEnv := fs.String("token-env", "", "Optional environment variable supplying UI auth token")
+	noAuth := fs.Bool("no-auth", false, "Disable token/cookie auth (intended only for isolated local CI checks)")
+	noOpen := fs.Bool("no-open", false, "Do not auto-open the system browser")
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return exitOK
+		}
+		return exitErr
+	}
+
+	var initToken string
+	if strings.TrimSpace(*tokenEnv) != "" {
+		initToken = strings.TrimSpace(os.Getenv(*tokenEnv))
+	}
+
+	srv, err := server.New(server.Config{
+		ListenAddr:  *listenAddr,
+		Workspace:   *workspace,
+		FromReports: *fromReports,
+		BinDir:      *binDir,
+		HistoryPath: *historyPath,
+		SIEMURL:     *siemURL,
+		Token:       initToken,
+		NoAuth:      *noAuth,
+	})
+	if err != nil {
+		fmt.Fprintf(stderr, "error: initialize UI server: %v\n", err)
+		return exitErr
+	}
+
+	ln, err := net.Listen("tcp", *listenAddr)
+	if err != nil {
+		fmt.Fprintf(stderr, "error: listen on %s: %v\n", *listenAddr, err)
+		return exitErr
+	}
+
+	baseURL := "http://" + ln.Addr().String()
+	launchURL := baseURL
+	if !*noAuth && srv.Token() != "" {
+		launchURL = baseURL + "/?token=" + srv.Token()
+	}
+
+	fmt.Fprintf(stdout, "Raksa Hybrid Web Workbench v%s listening on %s\n", schema.Version, baseURL)
+	if !*noAuth && srv.Token() != "" {
+		fmt.Fprintf(stdout, "Open: %s\n", launchURL)
+	}
+	if !*noOpen {
+		openBrowserURL(launchURL)
+	}
+
+	httpSrv := &http.Server{
+		Handler:           srv.Handler(),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	errCh := make(chan error, 1)
+	go func() {
+		if serveErr := httpSrv.Serve(ln); serveErr != nil && serveErr != http.ErrServerClosed {
+			errCh <- serveErr
+		}
+		close(errCh)
+	}()
+
+	select {
+	case serveErr := <-errCh:
+		if serveErr != nil {
+			fmt.Fprintf(stderr, "error: HTTP server failed: %v\n", serveErr)
+			return exitErr
+		}
+	case <-ctx.Done():
+		shCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_ = httpSrv.Shutdown(shCtx)
+		cancel()
+	}
+	return exitOK
+}
+
+func openBrowserURL(targetURL string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", targetURL)
+	case "darwin":
+		cmd = exec.Command("open", targetURL)
+	default:
+		cmd = exec.Command("xdg-open", targetURL)
+	}
+	_ = cmd.Start()
 }
 
 func writeOutput(data []byte, outputPath string, stdout io.Writer) error {

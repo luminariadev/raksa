@@ -92,4 +92,13 @@ func TestCLIInstallDryRunPlaybooksAndMCP(t *testing.T) {
 	if !strings.Contains(out.String(), "raksa_full_audit") || !strings.Contains(out.String(), "siem_verify_ledger") {
 		t.Fatalf("expected federated tools in mcp output: %s", out.String())
 	}
+
+	out.Reset()
+	errBuf.Reset()
+	if code := run([]string{"ui", "-h"}, &out, &errBuf, strings.NewReader("")); code != 0 {
+		t.Fatalf("ui -h failed: code=%d stderr=%s", code, errBuf.String())
+	}
+	if !strings.Contains(errBuf.String(), "-listen") || !strings.Contains(errBuf.String(), "-from-reports") {
+		t.Fatalf("expected ui flags in help output, got: %s", errBuf.String())
+	}
 }
