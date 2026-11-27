@@ -8,7 +8,7 @@ COPY cmd ./cmd
 COPY internal ./internal
 COPY playbooks ./playbooks
 
-ARG VERSION=0.3.0
+ARG VERSION=0.3.1
 ARG COMMIT=docker
 ARG BUILD_DATE=unknown
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \

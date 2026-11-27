@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = "v0.3.0",
+    [string]$Version = "v0.3.1",
     [string]$InstallDir = (Join-Path $HOME ".raksa\bin")
 )
 

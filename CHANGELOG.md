@@ -5,6 +5,18 @@ All notable changes to `raksa` (Layer 7 Hybrid Orchestrator & Workbench) will be
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-11-27
+
+### Added
+- **Apple Liquid Glass Rounded Theme (`internal/webui/assets/{index.html,styles.css,app.js}`)**:
+  - Floating translucent frosted-glass panels (`backdrop-filter: blur(28px) saturate(185%)`), ambient aurora radial backdrop, specular hairline highlights, squircle rounded cards, macOS traffic dots, Apple Segmented Controls, toast notifications, and instant **Dark Glass / Light Glass** toggle (`localStorage` persisted) with zero external CDNs or inline script/style attributes.
+- **Progressive Disclosure (`Simple` Mode Default + 1-Click `Pro` Mode + Built-In User Guide)**:
+  - **Simple Mode**: Calm 2-panel layout featuring Health Score, 1-click Quick Checks (*Check Code & Secrets*, *Check Website Security*, *Check Computer / Server*), prioritized *Issues & Fixes* cards with plain urgency labels (*Urgent*, *Important*, *Moderate*, *Low*), green recommended fix callouts, collapsible technical details, and a clean *Ask Raksa* chat pane.
+  - **Pro Mode**: Instant 1-click toggle back to the full 3-panel L1-L7 workbench (Hybrid layer checkboxes, YAML Playbooks, Attack-vs-Defense Matrix, Diff Workbench, SIEM Ledger, and 61 MCP tools).
+  - **User Guide (`view-guide`)**: Step-by-step Quick Start, Simple vs Pro comparison, Urgency glossary, and 6-layer plain-English overview reachable from both modes.
+- **Simplified Rounded Unicode + TrueColor TUI (`internal/tui`, `cmd/raksa`)**:
+  - Defaults to a beginner-friendly 6-item **Simple Quick Menu** (`Scan Project Now`, `Issues & Fixes`, `Ask Assistant`, `Quick Guide`, `Pro Mode`, `Quit`) with rounded Unicode cards (`╭─╮` / `╰─╯`), posture progress bar, glass-friendly foreground-only TrueColor ANSI palette, wrapped `/verify` box framing, and `--no-color` / `--color` CLI flags.
+
 ## [0.3.0] - 2026-11-27
 
 ### Added

@@ -15,7 +15,127 @@
     selectedLayers: new Set(),
     matrixFilter: "",
     selectedFindingId: null,
+    theme: "dark",
+    mode: "simple",
+    activeView: "simple-home",
+    simpleUrgencyFilter: "",
+    toastTimer: null,
   };
+
+  function showToast(msg) {
+    const pill = document.getElementById("toast-pill");
+    if (!pill || !msg) return;
+    pill.textContent = String(msg);
+    pill.classList.add("visible");
+    if (state.toastTimer) clearTimeout(state.toastTimer);
+    state.toastTimer = setTimeout(() => {
+      pill.classList.remove("visible");
+    }, 2600);
+  }
+
+  function applyTheme(theme, persist) {
+    const next = theme === "light" ? "light" : "dark";
+    state.theme = next;
+    document.documentElement.dataset.theme = next;
+    const lbl = document.getElementById("theme-toggle-label");
+    if (lbl) lbl.textContent = next === "light" ? "Dark" : "Light";
+    const btn = document.getElementById("btn-theme-toggle");
+    if (btn) btn.setAttribute("aria-pressed", String(next === "light"));
+    if (persist) {
+      try {
+        localStorage.setItem("raksa-theme", next);
+      } catch {
+        // ignore storage errors in restricted contexts
+      }
+    }
+  }
+
+  function initTheme() {
+    let saved = "dark";
+    try {
+      const stored = localStorage.getItem("raksa-theme");
+      if (stored === "light" || stored === "dark") saved = stored;
+    } catch {
+      saved = "dark";
+    }
+    applyTheme(saved, false);
+  }
+
+  function toggleTheme() {
+    const next = state.theme === "light" ? "dark" : "light";
+    applyTheme(next, true);
+    showToast(`Switched to ${next === "light" ? "Light Glass" : "Dark Glass"} theme`);
+  }
+
+  function applyMode(mode, persist, targetViewOverride) {
+    const next = mode === "pro" ? "pro" : "simple";
+    state.mode = next;
+    document.documentElement.dataset.mode = next;
+    document.querySelectorAll("#mode-switch .mode-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.modeOpt === next);
+    });
+    if (persist) {
+      try {
+        localStorage.setItem("raksa-mode", next);
+      } catch {
+        // ignore storage errors
+      }
+    }
+    if (targetViewOverride) {
+      switchView(targetViewOverride);
+      return;
+    }
+    const proViews = new Set(["overview", "findings", "matrix", "fixes", "siem"]);
+    const simpleViews = new Set(["simple-home", "simple-issues", "simple-ask"]);
+    if (next === "simple" && proViews.has(state.activeView)) {
+      switchView("simple-home");
+    } else if (next === "pro" && simpleViews.has(state.activeView)) {
+      switchView("overview");
+    }
+  }
+
+  function initMode() {
+    let saved = "simple";
+    try {
+      const stored = localStorage.getItem("raksa-mode");
+      if (stored === "simple" || stored === "pro") saved = stored;
+    } catch {
+      saved = "simple";
+    }
+    applyMode(saved, false, saved === "pro" ? "overview" : "simple-home");
+  }
+
+  function humanUrgency(sev) {
+    switch (String(sev || "").toLowerCase()) {
+      case "critical":
+        return { key: "urgent", label: "Urgent", pillClass: "sev-critical", rank: 4 };
+      case "high":
+        return { key: "important", label: "Important", pillClass: "sev-high", rank: 3 };
+      case "medium":
+        return { key: "moderate", label: "Moderate", pillClass: "sev-medium", rank: 2 };
+      default:
+        return { key: "low", label: "Low", pillClass: "sev-low", rank: 1 };
+    }
+  }
+
+  function humanLayerName(layer) {
+    switch (String(layer || "").toLowerCase()) {
+      case "network-defense":
+        return "Network Security";
+      case "host-hardening":
+        return "Computer / Server";
+      case "web-defense":
+        return "Website Security";
+      case "devsecops":
+        return "Code & Secrets";
+      case "ioc-defense":
+        return "Files & Malware";
+      case "siem":
+        return "Security Monitor";
+      default:
+        return layer || "General";
+    }
+  }
 
   function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -71,6 +191,7 @@
   }
 
   function switchView(viewName) {
+    state.activeView = viewName;
     document.querySelectorAll(".nav-item").forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.view === viewName);
     });
@@ -85,26 +206,34 @@
     }
   }
 
-  function renderGauge(score, grade) {
-    const host = document.getElementById("overview-gauge-host");
+  function renderGaugeInto(hostId, score, grade) {
+    const host = document.getElementById(hostId);
+    if (!host) return;
     clear(host);
     const s = Math.max(0, Math.min(100, Number(score || 0)));
-    const dash = Math.round((s * 264) / 100);
-    const color = s >= 90 ? "#3fb950" : s >= 70 ? "#d29922" : "#f85149";
+    const circ = 276;
+    const dash = Math.round((s * circ) / 100);
+    const arcCls = s >= 90 ? "gauge-arc-good" : s >= 70 ? "gauge-arc-warn" : "gauge-arc-bad";
 
-    const svg = svgEl("svg", { width: "120", height: "120", viewBox: "0 0 120 120" });
-    svg.appendChild(svgEl("circle", { cx: "60", cy: "60", r: "42", fill: "none", stroke: "#263244", "stroke-width": "10" }));
+    const svg = svgEl("svg", { width: "126", height: "126", viewBox: "0 0 120 120" });
+    svg.appendChild(svgEl("circle", { cx: "60", cy: "60", r: "44", class: "gauge-track" }));
     svg.appendChild(svgEl("circle", {
-      cx: "60", cy: "60", r: "42", fill: "none", stroke: color, "stroke-width": "10",
-      "stroke-dasharray": `${dash} 264`, transform: "rotate(-90 60 60)",
+      cx: "60", cy: "60", r: "44",
+      class: `gauge-arc ${arcCls}`,
+      "stroke-dasharray": `${dash} ${circ}`,
+      transform: "rotate(-90 60 60)",
     }));
-    const scoreText = svgEl("text", { x: "60", y: "58", "text-anchor": "middle", fill: "#e6edf3", "font-size": "24", "font-weight": "700" });
+    const scoreText = svgEl("text", { x: "60", y: "58", "text-anchor": "middle", class: "gauge-score-text" });
     scoreText.textContent = String(s);
-    const gradeText = svgEl("text", { x: "60", y: "78", "text-anchor": "middle", fill: "#8b9bb0", "font-size": "13" });
+    const gradeText = svgEl("text", { x: "60", y: "78", "text-anchor": "middle", class: "gauge-grade-text" });
     gradeText.textContent = `Grade ${grade || "-"}`;
     svg.appendChild(scoreText);
     svg.appendChild(gradeText);
     host.appendChild(svg);
+  }
+
+  function renderGauge(score, grade) {
+    renderGaugeInto("overview-gauge-host", score, grade);
   }
 
   function renderSparkline(runs) {
@@ -116,19 +245,22 @@
     }
     const ordered = [...runs].reverse();
     const w = 320;
-    const h = 84;
+    const h = 86;
     const svg = svgEl("svg", { viewBox: `0 0 ${w} ${h}`, width: "100%", height: String(h) });
     const pts = ordered.map((r, i) => {
       const x = ordered.length === 1 ? w / 2 : Math.round((i * (w - 20)) / (ordered.length - 1)) + 10;
-      const y = h - 10 - Math.round(((r.posture ? r.posture.score : 100) * (h - 22)) / 100);
+      const y = h - 12 - Math.round(((r.posture ? r.posture.score : 100) * (h - 24)) / 100);
       return [x, y, r];
     });
     if (pts.length > 1) {
       const d = pts.map(([x, y]) => `${x},${y}`).join(" ");
-      svg.appendChild(svgEl("polyline", { fill: "none", stroke: "#4ea1ff", "stroke-width": "2.5", points: d }));
+      const baseLine = h - 6;
+      const areaPts = `${pts[0][0]},${baseLine} ${d} ${pts[pts.length - 1][0]},${baseLine}`;
+      svg.appendChild(svgEl("polygon", { class: "spark-area", points: areaPts }));
+      svg.appendChild(svgEl("polyline", { class: "spark-line", points: d }));
     }
     for (const [x, y, r] of pts) {
-      const c = svgEl("circle", { cx: x, cy: y, r: "4", fill: "#3fb950" });
+      const c = svgEl("circle", { cx: x, cy: y, r: "4", class: "spark-dot" });
       const title = svgEl("title");
       title.textContent = `#${r.seq} ${r.profile}: ${r.posture ? r.posture.score : 0}/100`;
       c.appendChild(title);
@@ -142,24 +274,24 @@
     clear(host);
     const svg = svgEl("svg", { viewBox: "0 0 680 96", width: "100%", height: "96" });
     const nodes = [
-      { x: 10, y: 18, w: 120, h: 60, label: "L1-L5 Sensors", sub: "Net / Host / Web / CI / IoC" },
-      { x: 190, y: 18, w: 130, h: 60, label: "L7 Aggregator", sub: "Dedup + Waivers + Score" },
-      { x: 380, y: 18, w: 130, h: 60, label: "L6 raksa-siem", sub: "Correlate + Attack Graph" },
+      { x: 10, y: 18, w: 124, h: 60, label: "L1-L5 Sensors", sub: "Net / Host / Web / CI / IoC" },
+      { x: 188, y: 18, w: 134, h: 60, label: "L7 Aggregator", sub: "Dedup + Waivers + Score" },
+      { x: 376, y: 18, w: 134, h: 60, label: "L6 raksa-siem", sub: "Correlate + Attack Graph" },
       { x: 560, y: 18, w: 110, h: 60, label: "SHA-256 Ledger", sub: "runs.ndjson" },
     ];
     for (let i = 0; i < nodes.length; i++) {
       const n = nodes[i];
-      svg.appendChild(svgEl("rect", { x: n.x, y: n.y, width: n.w, height: n.h, rx: "8", fill: "#121821", stroke: "#388bfd", "stroke-width": "1.5" }));
-      const t1 = svgEl("text", { x: n.x + n.w / 2, y: n.y + 26, "text-anchor": "middle", fill: "#e6edf3", "font-size": "12", "font-weight": "700" });
+      svg.appendChild(svgEl("rect", { x: n.x, y: n.y, width: n.w, height: n.h, rx: "14", class: "flow-node-rect" }));
+      const t1 = svgEl("text", { x: n.x + n.w / 2, y: n.y + 27, "text-anchor": "middle", class: "flow-node-title" });
       t1.textContent = n.label;
-      const t2 = svgEl("text", { x: n.x + n.w / 2, y: n.y + 44, "text-anchor": "middle", fill: "#8b9bb0", "font-size": "9.5" });
+      const t2 = svgEl("text", { x: n.x + n.w / 2, y: n.y + 45, "text-anchor": "middle", class: "flow-node-sub" });
       t2.textContent = n.sub;
       svg.appendChild(t1);
       svg.appendChild(t2);
       if (i < nodes.length - 1) {
-        const x1 = n.x + n.w;
-        const x2 = nodes[i + 1].x;
-        svg.appendChild(svgEl("line", { x1, y1: 48, x2, y2: 48, stroke: "#4ea1ff", "stroke-width": "2" }));
+        const x1 = n.x + n.w + 4;
+        const x2 = nodes[i + 1].x - 4;
+        svg.appendChild(svgEl("line", { x1, y1: 48, x2, y2: 48, class: "flow-connector" }));
       }
     }
     host.appendChild(svg);
@@ -191,6 +323,187 @@
     renderLayerCards(rep);
     renderLayerTree(rep);
     renderFindingsTable();
+    renderSimpleHome(rep);
+    renderSimpleIssues();
+  }
+
+  function renderSimpleHome(rep) {
+    if (!rep) return;
+    const s = rep.summary || {};
+    const score = rep.posture ? rep.posture.score : 100;
+    const grade = rep.posture ? rep.posture.grade : "A+";
+    const total = Number(s.total || 0);
+    const crit = Number(s.critical || 0);
+    const high = Number(s.high || 0);
+
+    const cntBadge = document.getElementById("simple-issues-count");
+    if (cntBadge) cntBadge.textContent = String(total);
+
+    renderGaugeInto("simple-gauge-host", score, grade);
+
+    const pill = document.getElementById("simple-status-pill");
+    const title = document.getElementById("simple-status-title");
+    const desc = document.getElementById("simple-status-desc");
+    const meta = document.getElementById("simple-hero-meta");
+
+    if (meta) {
+      meta.textContent = `Project: ${rep.target || "."} | Found ${total} issue(s)`;
+    }
+
+    if (pill && title && desc) {
+      if (total === 0) {
+        pill.className = "sev-pill sev-low";
+        pill.textContent = "All Clear";
+        title.textContent = "Your project looks safe";
+        desc.textContent = "No active security issues were found in the latest read-only scan.";
+      } else if (crit > 0) {
+        pill.className = "sev-pill sev-critical";
+        pill.textContent = "Action Needed";
+        title.textContent = "Urgent issues need your attention";
+        desc.textContent = `Found ${total} issue(s), including ${crit} urgent item(s) you should fix first.`;
+      } else if (high > 0) {
+        pill.className = "sev-pill sev-high";
+        pill.textContent = "Needs Attention";
+        title.textContent = "Some important risks found";
+        desc.textContent = `Found ${total} issue(s), including ${high} important item(s) to fix before deploying.`;
+      } else {
+        pill.className = "sev-pill sev-medium";
+        pill.textContent = "Fairly Good";
+        title.textContent = "Minor hardening tips available";
+        desc.textContent = `Found ${total} moderate or low tip(s) to strengthen security further.`;
+      }
+    }
+
+    const host = document.getElementById("simple-priority-list");
+    if (!host) return;
+    clear(host);
+
+    const findings = [...((rep && rep.findings) || [])].sort(
+      (a, b) => humanUrgency(b.severity).rank - humanUrgency(a.severity).rank
+    );
+
+    if (findings.length === 0) {
+      const okRow = el("div", "priority-row");
+      const msg = el("div", "priority-row-text");
+      msg.appendChild(el("strong", "", "Clean bill of health"));
+      msg.appendChild(el("span", "muted", "Run any Quick Check above whenever you update code, headers, or server settings."));
+      okRow.appendChild(msg);
+      host.appendChild(okRow);
+      return;
+    }
+
+    for (const f of findings.slice(0, 3)) {
+      const u = humanUrgency(f.severity);
+      const row = el("div", "priority-row");
+      const left = el("div", "priority-row-main");
+      left.appendChild(el("span", `sev-pill ${u.pillClass}`, u.label));
+
+      const txt = el("div", "priority-row-text");
+      txt.appendChild(el("strong", "", f.title || f.rule_id));
+      txt.appendChild(el("span", "muted", `${humanLayerName(f.layer)} - ${f.target || "."}`));
+      left.appendChild(txt);
+
+      const fixBtn = el("button", "btn btn-ghost", "View Fix");
+      fixBtn.type = "button";
+      fixBtn.addEventListener("click", () => {
+        const searchBox = document.getElementById("simple-issues-search");
+        if (searchBox) searchBox.value = f.rule_id || "";
+        state.simpleUrgencyFilter = "";
+        document.querySelectorAll("#simple-urgency-pills .pill").forEach((p) => {
+          p.classList.toggle("active", (p.dataset.urgency || "") === "");
+        });
+        renderSimpleIssues();
+        switchView("simple-issues");
+      });
+
+      row.appendChild(left);
+      row.appendChild(fixBtn);
+      host.appendChild(row);
+    }
+  }
+
+  function renderSimpleIssues() {
+    const host = document.getElementById("simple-issues-list");
+    if (!host) return;
+    clear(host);
+
+    const searchInp = document.getElementById("simple-issues-search");
+    const q = searchInp ? searchInp.value.trim().toLowerCase() : "";
+    const uf = state.simpleUrgencyFilter || "";
+    const findings = [...((state.report && state.report.findings) || [])].sort(
+      (a, b) => humanUrgency(b.severity).rank - humanUrgency(a.severity).rank
+    );
+
+    const filtered = findings.filter((f) => {
+      const u = humanUrgency(f.severity);
+      if (uf && u.key !== uf) return false;
+      if (!q) return true;
+      return (
+        (f.title || "").toLowerCase().includes(q) ||
+        (f.rule_id || "").toLowerCase().includes(q) ||
+        (f.target || "").toLowerCase().includes(q) ||
+        humanLayerName(f.layer).toLowerCase().includes(q) ||
+        (f.remediation || "").toLowerCase().includes(q)
+      );
+    });
+
+    if (filtered.length === 0) {
+      const empty = el("div", "card");
+      empty.appendChild(el("p", "muted", "No matching issues found. Everything looks clean under this filter."));
+      host.appendChild(empty);
+      return;
+    }
+
+    for (const f of filtered) {
+      const u = humanUrgency(f.severity);
+      const card = el("div", "simple-issue-card");
+
+      const head = el("div", "simple-issue-head");
+      const badges = el("div", "simple-issue-badges");
+      badges.appendChild(el("span", `sev-pill ${u.pillClass}`, u.label));
+      badges.appendChild(el("span", "badge", humanLayerName(f.layer)));
+      head.appendChild(badges);
+
+      const askBtn = el("button", "btn btn-ghost", "Ask Raksa");
+      askBtn.type = "button";
+      askBtn.addEventListener("click", () => {
+        switchView("simple-ask");
+        askSimpleAssistant(`Explain in simple terms how to fix ${f.rule_id} (${f.title}) on ${f.target}`);
+      });
+      head.appendChild(askBtn);
+      card.appendChild(head);
+
+      card.appendChild(el("h3", "simple-issue-title", f.title || f.rule_id));
+      card.appendChild(el("div", "simple-issue-target", `Location: ${f.target || "."}`));
+
+      const fixBox = el("div", "fix-callout");
+      fixBox.appendChild(el("div", "fix-callout-label", "Recommended Fix"));
+      fixBox.appendChild(el("div", "fix-callout-text", f.remediation || f.description || "Review this configuration and apply least-privilege defaults."));
+      card.appendChild(fixBox);
+
+      const det = document.createElement("details");
+      det.className = "tech-details";
+      const sum = document.createElement("summary");
+      sum.textContent = `Technical Details (${f.rule_id || "info"})`;
+      det.appendChild(sum);
+
+      const meta = el("div", "drawer-kv");
+      meta.appendChild(el("div", "", `Rule ID: ${f.rule_id} | Severity: ${f.severity} | Layer: ${f.layer}`));
+      if (f.mitre_d3fend) meta.appendChild(el("div", "", `MITRE D3FEND: ${f.mitre_d3fend}`));
+      if (f.compliance && f.compliance.length) meta.appendChild(el("div", "", `Controls: ${f.compliance.join(", ")}`));
+      det.appendChild(meta);
+
+      const pre = el("pre", "", JSON.stringify(f.evidence || { description: f.description }, null, 2));
+      det.appendChild(pre);
+
+      const waiveBtn = el("button", "btn btn-ghost", "Dismiss / Add Waiver");
+      waiveBtn.type = "button";
+      waiveBtn.addEventListener("click", () => openWaiverModal(f));
+      det.appendChild(waiveBtn);
+
+      card.appendChild(det);
+      host.appendChild(card);
+    }
   }
 
   function renderLayerCards(rep) {
@@ -208,8 +521,16 @@
       head.appendChild(badge);
       card.appendChild(head);
 
-      const scoreText = `${ex.posture ? ex.posture.score : 100}/100 (${ex.posture ? ex.posture.grade : "A+"})`;
+      const layerScore = Math.max(0, Math.min(100, Number(ex.posture ? ex.posture.score : 100)));
+      const scoreText = `${layerScore}/100 (${ex.posture ? ex.posture.grade : "A+"})`;
       card.appendChild(el("div", "layer-card-score", scoreText));
+
+      const barSvg = svgEl("svg", { class: "mini-bar-svg", viewBox: "0 0 100 6", preserveAspectRatio: "none" });
+      barSvg.appendChild(svgEl("rect", { x: "0", y: "0", width: "100", height: "6", rx: "3", class: "mini-bar-track" }));
+      const fillCls = layerScore >= 90 ? "mini-bar-fill-good" : layerScore >= 70 ? "mini-bar-fill-warn" : "mini-bar-fill-bad";
+      barSvg.appendChild(svgEl("rect", { x: "0", y: "0", width: String(layerScore), height: "6", rx: "3", class: fillCls }));
+      card.appendChild(barSvg);
+
       card.appendChild(el("div", "muted", `Findings: ${ex.findings_count || 0} | Rules: ${doc ? doc.rule_count : "-"}`));
       if (ex.message) {
         card.appendChild(el("div", "layer-card-hint", ex.message));
@@ -502,8 +823,10 @@
       renderReport(rep);
       await loadHistory();
       appendTelemetry("scan", `Completed audit: score ${rep.posture.score}/100 (${rep.posture.grade}), findings=${rep.summary.total}`);
+      showToast(`Audit complete: ${rep.posture.score}/100 (${rep.posture.grade})`);
     } catch (err) {
       appendTelemetry("error", `Scan failed: ${err.message}`);
+      showToast(`Scan failed: ${err.message}`);
     }
   }
 
@@ -518,8 +841,10 @@
       renderReport(rep);
       await loadHistory();
       appendTelemetry("playbook", `Playbook '${name}' finished (${rep.posture.score}/100)`);
+      showToast(`Playbook '${name}': ${rep.posture.score}/100 (${rep.posture.grade})`);
     } catch (err) {
       appendTelemetry("error", `Playbook '${name}' error: ${err.message}`);
+      showToast(`Playbook '${name}' error: ${err.message}`);
     }
   }
 
@@ -559,6 +884,9 @@
   function renderPaletteResults(query) {
     const q = query.trim().toLowerCase();
     const actions = [
+      { label: "Mode: Switch Simple / Pro", hint: "mode", fn: () => applyMode(state.mode === "pro" ? "simple" : "pro", true) },
+      { label: "Theme: Toggle Dark / Light Glass", hint: "theme", fn: () => toggleTheme() },
+      { label: "View: User Guide", hint: "guide", fn: () => switchView("guide") },
       { label: "Assistant: Prioritize Top Risks", hint: "assistant", fn: () => askAssistant("Prioritize top risks") },
       { label: "View: Overview", hint: "view", fn: () => switchView("overview") },
       { label: "View: Findings Explorer", hint: "view", fn: () => switchView("findings") },
@@ -623,6 +951,8 @@
     document.getElementById("btn-toggle-right").addEventListener("click", () => {
       document.querySelector(".workspace").classList.toggle("right-collapsed");
     });
+    const themeBtn = document.getElementById("btn-theme-toggle");
+    if (themeBtn) themeBtn.addEventListener("click", toggleTheme);
     document.getElementById("btn-run-audit").addEventListener("click", () => runScan());
     document.getElementById("btn-run-selected").addEventListener("click", () => {
       const layers = [...state.selectedLayers];
@@ -661,6 +991,7 @@
       const text = items.map((i) => `# ${i.layer}\n${i.diff}`).join("\n\n");
       if (navigator.clipboard && text) await navigator.clipboard.writeText(text);
       appendTelemetry("fix", "Copied unified patch diff to clipboard.");
+      showToast("Copied unified patch diff to clipboard.");
     });
 
     document.getElementById("btn-download-patch").addEventListener("click", () => {
@@ -679,6 +1010,7 @@
       const snippet = JSON.stringify({ mcpServers: { raksa: { command: "raksa", args: ["mcp"] } } }, null, 2);
       if (navigator.clipboard) await navigator.clipboard.writeText(snippet);
       appendTelemetry("mcp", "Copied 61-tool raksa MCP config to clipboard.");
+      showToast("Copied 61-tool MCP config to clipboard.");
     });
 
     document.getElementById("btn-siem-health").addEventListener("click", async () => {
@@ -719,6 +1051,7 @@
         document.getElementById("waiver-modal").close();
         renderReport(rep);
         appendTelemetry("waiver", "Saved fail-closed waiver to .raksa.yml and refreshed posture.");
+        showToast("Saved fail-closed waiver to .raksa.yml.");
       } catch (err) {
         errBox.textContent = err.message;
       }
@@ -736,6 +1069,97 @@
       }
     });
 
+    document.querySelectorAll("#mode-switch .mode-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const nextMode = btn.dataset.modeOpt || "simple";
+        applyMode(nextMode, true);
+        showToast(`Switched to ${nextMode === "pro" ? "Pro Workbench" : "Simple Mode"}`);
+      });
+    });
+
+    const swProBtn = document.getElementById("btn-switch-to-pro");
+    if (swProBtn) {
+      swProBtn.addEventListener("click", () => {
+        applyMode("pro", true, "overview");
+        showToast("Switched to Pro Workbench");
+      });
+    }
+
+    const simpleScanBtn = document.getElementById("btn-simple-scan");
+    if (simpleScanBtn) simpleScanBtn.addEventListener("click", () => runScan({ profile: "full" }));
+
+    const simpleGotoIssues = document.getElementById("btn-simple-goto-issues");
+    if (simpleGotoIssues) simpleGotoIssues.addEventListener("click", () => switchView("simple-issues"));
+
+    const simpleSeeAll = document.getElementById("btn-simple-see-all");
+    if (simpleSeeAll) simpleSeeAll.addEventListener("click", () => switchView("simple-issues"));
+
+    const simpleGotoAsk = document.getElementById("btn-simple-goto-ask");
+    if (simpleGotoAsk) simpleGotoAsk.addEventListener("click", () => switchView("simple-ask"));
+
+    document.querySelectorAll(".quick-check-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        const prof = card.dataset.quickProfile || "full";
+        runScan({ profile: prof });
+      });
+    });
+
+    const simpleSearch = document.getElementById("simple-issues-search");
+    if (simpleSearch) simpleSearch.addEventListener("input", renderSimpleIssues);
+
+    document.querySelectorAll("#simple-urgency-pills .pill").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.simpleUrgencyFilter = btn.dataset.urgency || "";
+        document.querySelectorAll("#simple-urgency-pills .pill").forEach((p) => p.classList.toggle("active", p === btn));
+        renderSimpleIssues();
+      });
+    });
+
+    const simpleAiSettingsBtn = document.getElementById("btn-simple-ai-settings");
+    const simpleAiDrawer = document.getElementById("simple-ai-settings-drawer");
+    if (simpleAiSettingsBtn && simpleAiDrawer) {
+      simpleAiSettingsBtn.addEventListener("click", () => simpleAiDrawer.classList.toggle("hidden"));
+    }
+
+    const sModeSel = document.getElementById("simple-assistant-mode");
+    const pModeSel = document.getElementById("assistant-mode");
+    if (sModeSel && pModeSel) {
+      sModeSel.addEventListener("change", () => { pModeSel.value = sModeSel.value; });
+      pModeSel.addEventListener("change", () => { sModeSel.value = pModeSel.value; });
+    }
+    const sModelInp = document.getElementById("simple-assistant-model");
+    const pModelInp = document.getElementById("assistant-model");
+    if (sModelInp && pModelInp) {
+      sModelInp.addEventListener("input", () => { pModelInp.value = sModelInp.value; });
+      pModelInp.addEventListener("input", () => { sModelInp.value = pModelInp.value; });
+    }
+
+    document.querySelectorAll(".simple-ask-chip").forEach((btn) => {
+      btn.addEventListener("click", () => askSimpleAssistant(btn.dataset.prompt || ""));
+    });
+    const simpleAskForm = document.getElementById("simple-ask-form");
+    if (simpleAskForm) {
+      simpleAskForm.addEventListener("submit", (ev) => {
+        ev.preventDefault();
+        const inp = document.getElementById("simple-ask-input");
+        const text = inp.value.trim();
+        if (!text) return;
+        inp.value = "";
+        askSimpleAssistant(text);
+      });
+    }
+
+    const guideStart = document.getElementById("btn-guide-start");
+    if (guideStart) {
+      guideStart.addEventListener("click", () => {
+        switchView(state.mode === "pro" ? "overview" : "simple-home");
+      });
+    }
+    const guideSimple = document.getElementById("btn-guide-simple");
+    if (guideSimple) guideSimple.addEventListener("click", () => applyMode("simple", true, "simple-home"));
+    const guidePro = document.getElementById("btn-guide-pro");
+    if (guidePro) guidePro.addEventListener("click", () => applyMode("pro", true, "overview"));
+
     document.querySelectorAll(".assistant-chip").forEach((btn) => {
       btn.addEventListener("click", () => askAssistant(btn.dataset.prompt || ""));
     });
@@ -749,33 +1173,60 @@
     });
   }
 
-  function appendChatMessage(roleLabel, bodyText, isUser, toolCalls, citations) {
-    const host = document.getElementById("assistant-chat");
+  function appendChatMessageTo(hostId, roleLabel, bodyText, isUser, toolCalls, citations, collapseTools) {
+    const host = document.getElementById(hostId);
+    if (!host) return;
     const box = el("div", `chat-msg ${isUser ? "chat-user" : "chat-bot"}`);
     box.appendChild(el("div", "chat-role", roleLabel));
-    box.appendChild(el("div", "chat-body", bodyText));
-
-    if (toolCalls && toolCalls.length > 0) {
-      const wrap = el("div", "tool-cards-wrap");
-      for (const tc of toolCalls) {
-        const card = el("div", "tool-card");
-        card.appendChild(el("code", "", tc.name));
-        card.appendChild(el("span", "muted", ` [${tc.status}] - ${tc.summary}`));
-        wrap.appendChild(card);
-      }
-      box.appendChild(wrap);
+    const body = el("div", "chat-body");
+    for (const rawLine of String(bodyText || "").split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      const isBullet = /^(-|\*|\d+\.)\s+/.test(line);
+      body.appendChild(el("div", isBullet ? "chat-line chat-line-bullet" : "chat-line", line));
     }
+    box.appendChild(body);
 
-    if (citations && citations.length > 0) {
-      const cwrap = el("div", "citations-wrap");
-      for (const cite of citations) {
-        cwrap.appendChild(el("span", "badge", cite));
+    const hasTools = toolCalls && toolCalls.length > 0;
+    const hasCites = citations && citations.length > 0;
+    if (hasTools || hasCites) {
+      let targetContainer = box;
+      if (collapseTools) {
+        const det = document.createElement("details");
+        det.className = "tool-checks-details";
+        const sum = document.createElement("summary");
+        sum.textContent = `Verified with ${hasTools ? toolCalls.length : 0} read-only check(s)`;
+        det.appendChild(sum);
+        box.appendChild(det);
+        targetContainer = det;
       }
-      box.appendChild(cwrap);
+
+      if (hasTools) {
+        const wrap = el("div", "tool-cards-wrap");
+        for (const tc of toolCalls) {
+          const card = el("div", "tool-card");
+          card.appendChild(el("code", "", tc.name));
+          card.appendChild(el("span", "muted", ` [${tc.status}] - ${tc.summary}`));
+          wrap.appendChild(card);
+        }
+        targetContainer.appendChild(wrap);
+      }
+
+      if (hasCites) {
+        const cwrap = el("div", "citations-wrap");
+        for (const cite of citations) {
+          cwrap.appendChild(el("span", "badge", cite));
+        }
+        targetContainer.appendChild(cwrap);
+      }
     }
 
     host.appendChild(box);
     host.scrollTop = host.scrollHeight;
+  }
+
+  function appendChatMessage(roleLabel, bodyText, isUser, toolCalls, citations) {
+    appendChatMessageTo("assistant-chat", roleLabel, bodyText, isUser, toolCalls, citations, false);
   }
 
   async function askAssistant(promptText) {
@@ -798,7 +1249,28 @@
     }
   }
 
+  async function askSimpleAssistant(promptText) {
+    if (!promptText) return;
+    const modeSel = document.getElementById("simple-assistant-mode");
+    const modelInp = document.getElementById("simple-assistant-model");
+    const mode = modeSel ? modeSel.value : "local";
+    const model = modelInp ? modelInp.value.trim() : "";
+
+    appendChatMessageTo("simple-chat-host", "You", promptText, true, null, null, true);
+    try {
+      const res = await apiJSON("/api/v1/assistant/chat", {
+        method: "POST",
+        body: JSON.stringify({ prompt: promptText, mode, model }),
+      });
+      appendChatMessageTo("simple-chat-host", "Raksa Assistant", res.reply, false, res.tool_calls || [], res.citations || [], true);
+    } catch (err) {
+      appendChatMessageTo("simple-chat-host", "Raksa Assistant", err.message, false, null, null, true);
+    }
+  }
+
   async function init() {
+    initTheme();
+    initMode();
     wireEvents();
     renderTelemetryFlow();
     connectSSE();
@@ -814,11 +1286,13 @@
         apiJSON("/api/v1/assistant/config"),
       ]);
       state.status = status;
-      document.getElementById("ui-version").textContent = `v${status.version || "0.3.0"}`;
+      document.getElementById("ui-version").textContent = `v${status.version || "0.3.1"}`;
       document.getElementById("ui-edition").textContent = String((status.edition && status.edition.edition) || "OSS").toUpperCase();
       document.getElementById("target-input").value = status.workspace || ".";
       if (astCfg && astCfg.default_model) {
         document.getElementById("assistant-model").placeholder = `Model (${astCfg.default_model})`;
+        const sModel = document.getElementById("simple-assistant-model");
+        if (sModel) sModel.placeholder = `Model (${astCfg.default_model})`;
       }
       state.doctor = doc.tools || [];
       renderReport(rep);

@@ -19,18 +19,25 @@ Unifying network, host, web, DevSecOps, IoC/malware, and SIEM defenses (**152 bu
 </div>
 
 <p align="center">
-  <img src="docs/images/raksa-workbench.png" alt="Raksa 3-Panel Hybrid Defense Workbench" width="960">
+  <img src="docs/images/raksa-workbench.png" alt="Raksa Simple Mode - Apple Liquid Glass Dark Theme" width="960">
+</p>
+
+<p align="center">
+  <img src="docs/images/raksa-workbench-pro.png" alt="Raksa Pro 3-Panel Hybrid Workbench" width="470">
+  &nbsp;
+  <img src="docs/images/raksa-workbench-light.png" alt="Raksa Built-In User Guide - Light Glass Theme" width="470">
 </p>
 
 ---
 
-**`raksa`** (from Sundanese/Sanskrit *raksa*, meaning to guard or protect) is the Layer 7 flagship umbrella orchestrator and workbench of the Raksa Security Suite. In **`v0.3.0`**, it reaches full ecosystem version parity with Layers 1-6, uniting a **clusterless Go CLI & TUI** with a **3-panel Hybrid Web Workbench (`raksa ui`)**, a **read-only BYOK AI Defense Assistant**, and a **pure-Rust `Tauri v2` Desktop App (`desktop/`)**.
+**`raksa`** (from Sundanese/Sanskrit *raksa*, meaning to guard or protect) is the Layer 7 flagship umbrella orchestrator and workbench of the Raksa Security Suite. Starting in **`v0.3.1`** (orchestrating the `v0.3.0` L1-L6 defensive ecosystem), it pairs an **Apple Liquid Glass Rounded UI (Dark & Light Glass)** and **Progressive Disclosure (`Simple` Mode default + 1-click `Pro` Mode + built-in User Guide)** with a **clusterless Go CLI & TUI**, **read-only BYOK AI Defense Assistant**, and **pure-Rust `Tauri v2` Desktop App (`desktop/`)**.
 
 ## Why `raksa` Stands Out
 
-- **Hybrid 3-Panel Workbench (`raksa ui` & `Tauri v2` Desktop)**: Run a single `Full Audit (L1-L6)` or drill down via per-layer sidebar checkboxes, individual layer scans, YAML playbooks, `Ctrl+K` Command Palette, Attack-vs-Defense Matrix, Read-Only Diff Viewer, and live SSE telemetry.
+- **Simple Mode (Default) + 1-Click Pro Mode (`raksa ui` & `Tauri v2` Desktop)**: Beginners start with a calm Health Score, 1-click Quick Checks (*Code & Secrets*, *Website Security*, *Computer / Server*), plain-language *Issues & Fixes*, distraction-free *Ask Raksa* chat, and a built-in *User Guide*. Switch to **Pro Mode** in one click for per-layer L1-L6 checkboxes, YAML playbooks, `Ctrl+K` Command Palette, Attack-vs-Defense Matrix, Read-Only Diff Viewer, and live SSE telemetry.
+- **Apple Liquid Glass UI (Dark & Light Themes)**: Zero-dependency floating frosted panels (`backdrop-filter`), squircle corners, macOS-inspired segmented controls, theme-reactive SVG charts, and instant Dark Glass / Light Glass switching under strict `100/100 (A+)` CSP.
 - **Read-Only BYOK AI Defense Assistant (`internal/assistant`)**: Ships with an **Offline Deterministic** mode (zero API keys required), **Local Ollama** (`http://localhost:11434`), and standard external **BYOK** endpoint adapters (`RAKSA_AI_ENDPOINT` + `RAKSA_AI_API_KEY`). Every reply cites verified Tool Call Cards and never auto-mutates files.
-- **Interactive Terminal Workbench (`raksa tui`)**: Zero-dependency keyboard/slash-command Blue Team shell for headless Linux hosts and SSH sessions.
+- **Simplified Rounded TrueColor TUI (`raksa tui`)**: Starts with a 6-item Simple Quick Menu (Scan, Issues & Fixes, Ask Assistant, Beginner Quick Guide, Pro Mode toggle, Quit) using rounded Unicode borders and glass-friendly TrueColor ANSI (`--no-color` / `--color` supported).
 - **Zero-Cluster Core & Hash-Chained Ledger**: No mandatory OpenSearch, PostgreSQL, or Docker daemon to scan and correlate. Run history is stored locally in tamper-evident `runs.ndjson`.
 - **Hardened Web & Desktop Security (`100/100 A+`)**: Enforces strict CSP (`default-src 'self'; script-src 'self'`), HSTS, `X-Frame-Options: DENY`, `HttpOnly; SameSite=Strict` token-to-cookie sessions, anti-CSRF checks, and a `#![forbid(unsafe_code)]` Rust desktop sidecar.
 - **Federated 61-Tool MCP Hub**: One `raksa mcp` server exposes **8 orchestrator meta-tools** plus **53 specialized Layer 1-6 tools**.
@@ -62,7 +69,7 @@ flowchart TB
     SIEMBridge --> L6["L6 SIEM (23 rules)"]
 ```
 
-## Covered Defensive Ecosystem (Uniform `v0.3.0`)
+## Covered Defensive Ecosystem (`v0.3.x`)
 
 | Layer | Repository | Language | Version | Rules | MCP Tools | Defensive Domain |
 | :--- | :--- | :--- | :---: | ---: | ---: | :--- |
@@ -72,7 +79,7 @@ flowchart TB
 | **L4** | [raksa-pipeguard](https://github.com/luminariadev/raksa-pipeguard) | Go | `v0.3.0` | `33` | `9` | Secrets, CycloneDX/SPDX SBOM, OSV/KEV/EPSS CVEs, OCI image scan, IaC & CI |
 | **L5** | [raksa-iocscan](https://github.com/luminariadev/raksa-iocscan) | Python | `v0.3.0` | `27` | `10` | Pure-Python YARA engine, Imphash/FastCDC, PE/ELF/Mach-O, document & archive triage |
 | **L6** | [raksa-siem](https://github.com/luminariadev/raksa-siem) | Go + Py | `v0.3.0` | `23` | `12` | 13-format log normalizer, Sigma/EQL correlator, attack graph, hash-chained ledger |
-| **L7** | **`raksa`** (This Repo) | Go + Rust | **`v0.3.0`** | - | `+8` | Hybrid orchestrator, Web Workbench, AI Defense Assistant, TUI, Desktop App |
+| **L7** | **`raksa`** (This Repo) | Go + Rust | **`v0.3.1`** | - | `+8` | Hybrid orchestrator, Apple Glass Simple/Pro UI, User Guide, AI Assistant, TUI, Desktop App |
 
 ---
 
@@ -150,7 +157,7 @@ Orchestrator tools (`raksa_doctor`, `raksa_full_audit`, `raksa_posture_summary`,
 
 ```yaml
 - name: Run Raksa Hybrid Defense Gate
-  uses: luminariadev/raksa/action@v0.3.0
+  uses: luminariadev/raksa/action@v0.3.1
   with:
     path: .
     profile: repo

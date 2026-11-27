@@ -743,6 +743,8 @@ func runTUI(args []string, stdout, stderr io.Writer, stdin io.Reader) int {
 	binDir := fs.String("bin-dir", "", "Optional directory containing Layer 1-6 binaries")
 	historyPath := fs.String("history", store.DefaultHistoryPath(), "Path to SHA-256 hash-chained runs.ndjson")
 	siemURL := fs.String("siem-url", "", "Optional raksa-siem HTTP endpoint")
+	noColor := fs.Bool("no-color", false, "Disable TrueColor ANSI styling in interactive output")
+	forceColor := fs.Bool("color", false, "Force TrueColor ANSI styling even on non-TTY pipes")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return exitOK
@@ -756,6 +758,8 @@ func runTUI(args []string, stdout, stderr io.Writer, stdin io.Reader) int {
 		BinDir:      *binDir,
 		HistoryPath: *historyPath,
 		SIEMURL:     *siemURL,
+		NoColor:     *noColor,
+		ForceColor:  *forceColor,
 	}, stdin, stdout); err != nil {
 		fmt.Fprintf(stderr, "error: tui failed: %v\n", err)
 		return exitErr
