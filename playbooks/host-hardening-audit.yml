@@ -1,0 +1,23 @@
+name: host-hardening-audit
+title: Linux Host & Persistence Hardening Audit
+description: Audits OpenSSH, sysctl, sudoers, systemd, persistence hooks, PAM/login.defs, and local network listeners.
+profile: host
+layers:
+  - netguard
+  - hostguard
+  - iocscan
+  - siem
+fail_on: high
+mitre_d3fend:
+  - D3-FIM
+  - D3-NI
+  - D3-LAM
+steps:
+  - layer: netguard
+    summary: Verify local listening sockets against authorized baseline policy
+  - layer: hostguard
+    summary: Audit CIS host hardening rules across SSH, systemd, cron, PAM, and Docker daemon
+  - layer: iocscan
+    summary: Inspect persistence scripts and staged payloads in host directories
+  - layer: siem
+    summary: Correlate listener exposure with host drift findings

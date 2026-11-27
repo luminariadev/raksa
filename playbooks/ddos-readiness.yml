@@ -1,0 +1,22 @@
+name: ddos-readiness
+title: DoS / Flood & Rate-Limit Defense Verification
+description: Checks kernel SYN backlog protections, reverse-proxy rate limits, and connection-burst anomaly coverage.
+profile: custom
+layers:
+  - netguard
+  - hostguard
+  - webshield
+  - siem
+fail_on: medium
+mitre_d3fend:
+  - D3-ITF
+  - D3-NTA
+steps:
+  - layer: hostguard
+    summary: Verify sysctl TCP SYN cookie and connection hardening parameters (HOST-301)
+  - layer: webshield
+    summary: Verify proxy rate-limiting configuration and strict edge timeout defaults (WEB-312)
+  - layer: netguard
+    summary: Evaluate connection burst thresholds and log analysis pipelines (NET-103)
+  - layer: siem
+    summary: Ensure DoS/scan correlation rules are loaded for alerting

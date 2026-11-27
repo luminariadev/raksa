@@ -1,0 +1,23 @@
+name: incident-triage
+title: Rapid Post-Incident DFIR & Correlation Triage
+description: Combines malware/IoC scanning, host config/FIM inspection, and SIEM Sigma/EQL chain correlation.
+profile: incident
+layers:
+  - iocscan
+  - hostguard
+  - netguard
+  - siem
+fail_on: medium
+mitre_d3fend:
+  - D3-FA
+  - D3-FIM
+  - D3-AL
+steps:
+  - layer: iocscan
+    summary: Scan suspect directories and archives with YARA, Imphash, FastCDC, and PE/ELF checks
+  - layer: hostguard
+    summary: Inspect persistence hooks (cron, systemd, sudoers) and host configuration drift
+  - layer: netguard
+    summary: Check anomalous listeners or firewall logs when --net-policy / --net-log is supplied
+  - layer: siem
+    summary: Correlate multi-layer telemetry into incident timelines and MITRE ATT&CK chains

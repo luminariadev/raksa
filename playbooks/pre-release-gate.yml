@@ -1,0 +1,26 @@
+name: pre-release-gate
+title: Pre-Release DevSecOps & Artifact Gate
+description: Runs Layer 2-4 static hardening, container/IaC checks, secrets/SBOM/CVE gates, and Layer 5 malware scanning before shipping.
+profile: repo
+layers:
+  - pipeguard
+  - hostguard
+  - webshield
+  - iocscan
+  - siem
+fail_on: high
+mitre_d3fend:
+  - D3-SYSV
+  - D3-CISC
+  - D3-FA
+steps:
+  - layer: pipeguard
+    summary: Audit secrets, lockfiles, OSV/KEV/EPSS advisories, CI workflows, and IaC manifests
+  - layer: hostguard
+    summary: Validate Dockerfile, docker-compose, systemd units, and SSH/host configs
+  - layer: webshield
+    summary: Check reverse-proxy configs, CSP, CORS, and cookie flags in workspace
+  - layer: iocscan
+    summary: Triage build artifacts and scripts against YARA signatures and archive limits
+  - layer: siem
+    summary: Correlate upstream Layer 2-5 reports for cross-layer escalation signals

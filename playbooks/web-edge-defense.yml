@@ -1,0 +1,19 @@
+name: web-edge-defense
+title: Web & API Edge Hardening Assessment
+description: Evaluates HTTP security headers, CSP, CORS, TLS settings, Nginx/Caddy configs, and supply-chain packages.
+profile: web
+layers:
+  - webshield
+  - pipeguard
+  - hostguard
+fail_on: high
+mitre_d3fend:
+  - D3-SRA
+  - D3-ITF
+steps:
+  - layer: webshield
+    summary: Audit HTTP headers, CSP/CORS, and reverse-proxy templates
+  - layer: pipeguard
+    summary: Verify frontend/backend dependency manifests and leaked secrets
+  - layer: hostguard
+    summary: Check container deployment descriptors exposing web workloads
