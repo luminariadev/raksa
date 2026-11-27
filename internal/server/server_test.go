@@ -151,4 +151,30 @@ func TestServerSecurityHeadersAuthCSRFAndWorkflows(t *testing.T) {
 	if ingResp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200 on SIEM ingest, got %d", ingResp.StatusCode)
 	}
+
+	// Assistant config & chat endpoints enforce auth + return grounded read-only reply
+	astCfgReq, _ := http.NewRequest(http.MethodGet, ts.URL+"/api/v1/assistant/config", nil)
+	astCfgReq.Header.Set("X-Raksa-Token", "unit-test-token-123")
+	astCfgResp, err := http.DefaultClient.Do(astCfgReq)
+	if err != nil || astCfgResp.StatusCode != http.StatusOK {
+		t.Fatalf("assistant config failed: status=%v err=%v", astCfgResp, err)
+	}
+	astCfgResp.Body.Close()
+
+	astChatReq, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/v1/assistant/chat", strings.NewReader(`{"mode":"local","prompt":"Prioritize risks and check ledger"}`))
+	astChatReq.Header.Set("X-Raksa-Token", "unit-test-token-123")
+	astChatResp, err := http.DefaultClient.Do(astChatReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var chatOut struct {
+		ReadOnly  bool   `json:"read_only"`
+		Reply     string `json:"reply"`
+		ToolCalls []any  `json:"tool_calls"`
+	}
+	_ = json.NewDecoder(astChatResp.Body).Decode(&chatOut)
+	astChatResp.Body.Close()
+	if astChatResp.StatusCode != http.StatusOK || !chatOut.ReadOnly || len(chatOut.ToolCalls) < 2 {
+		t.Fatalf("unexpected assistant chat output: code=%d body=%+v", astChatResp.StatusCode, chatOut)
+	}
 }

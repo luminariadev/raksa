@@ -559,6 +559,7 @@
   function renderPaletteResults(query) {
     const q = query.trim().toLowerCase();
     const actions = [
+      { label: "Assistant: Prioritize Top Risks", hint: "assistant", fn: () => askAssistant("Prioritize top risks") },
       { label: "View: Overview", hint: "view", fn: () => switchView("overview") },
       { label: "View: Findings Explorer", hint: "view", fn: () => switchView("findings") },
       { label: "View: Attack-vs-Defense Matrix", hint: "view", fn: () => switchView("matrix") },
@@ -734,6 +735,67 @@
         openPalette();
       }
     });
+
+    document.querySelectorAll(".assistant-chip").forEach((btn) => {
+      btn.addEventListener("click", () => askAssistant(btn.dataset.prompt || ""));
+    });
+    document.getElementById("assistant-form").addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      const inp = document.getElementById("assistant-input");
+      const text = inp.value.trim();
+      if (!text) return;
+      inp.value = "";
+      askAssistant(text);
+    });
+  }
+
+  function appendChatMessage(roleLabel, bodyText, isUser, toolCalls, citations) {
+    const host = document.getElementById("assistant-chat");
+    const box = el("div", `chat-msg ${isUser ? "chat-user" : "chat-bot"}`);
+    box.appendChild(el("div", "chat-role", roleLabel));
+    box.appendChild(el("div", "chat-body", bodyText));
+
+    if (toolCalls && toolCalls.length > 0) {
+      const wrap = el("div", "tool-cards-wrap");
+      for (const tc of toolCalls) {
+        const card = el("div", "tool-card");
+        card.appendChild(el("code", "", tc.name));
+        card.appendChild(el("span", "muted", ` [${tc.status}] - ${tc.summary}`));
+        wrap.appendChild(card);
+      }
+      box.appendChild(wrap);
+    }
+
+    if (citations && citations.length > 0) {
+      const cwrap = el("div", "citations-wrap");
+      for (const cite of citations) {
+        cwrap.appendChild(el("span", "badge", cite));
+      }
+      box.appendChild(cwrap);
+    }
+
+    host.appendChild(box);
+    host.scrollTop = host.scrollHeight;
+  }
+
+  async function askAssistant(promptText) {
+    if (!promptText) return;
+    document.querySelectorAll(".rtab").forEach((t) => t.classList.toggle("active", t.dataset.rtab === "assistant"));
+    document.querySelectorAll(".right-pane").forEach((p) => p.classList.toggle("active", p.id === "rtab-assistant"));
+
+    const mode = document.getElementById("assistant-mode").value || "local";
+    const model = document.getElementById("assistant-model").value.trim();
+    appendChatMessage("Operator", promptText, true);
+    try {
+      const res = await apiJSON("/api/v1/assistant/chat", {
+        method: "POST",
+        body: JSON.stringify({ prompt: promptText, mode, model }),
+      });
+      const label = `Raksa Assistant (${res.mode}${res.model ? " / " + res.model : ""})`;
+      appendChatMessage(label, res.reply, false, res.tool_calls || [], res.citations || []);
+    } catch (err) {
+      appendChatMessage("Assistant Error", err.message, false);
+    }
   }
 
   async function init() {
@@ -741,7 +803,7 @@
     renderTelemetryFlow();
     connectSSE();
     try {
-      const [status, doc, rep, pbs, mat, hist, mcp] = await Promise.all([
+      const [status, doc, rep, pbs, mat, hist, mcp, astCfg] = await Promise.all([
         apiJSON("/api/v1/status"),
         apiJSON("/api/v1/doctor"),
         apiJSON("/api/v1/report"),
@@ -749,11 +811,15 @@
         apiJSON("/api/v1/attack-matrix"),
         apiJSON("/api/v1/history"),
         apiJSON("/api/v1/mcp-catalog"),
+        apiJSON("/api/v1/assistant/config"),
       ]);
       state.status = status;
-      document.getElementById("ui-version").textContent = `v${status.version || "0.2.0"}`;
+      document.getElementById("ui-version").textContent = `v${status.version || "0.3.0"}`;
       document.getElementById("ui-edition").textContent = String((status.edition && status.edition.edition) || "OSS").toUpperCase();
       document.getElementById("target-input").value = status.workspace || ".";
+      if (astCfg && astCfg.default_model) {
+        document.getElementById("assistant-model").placeholder = `Model (${astCfg.default_model})`;
+      }
       state.doctor = doc.tools || [];
       renderReport(rep);
       renderPlaybooks(pbs.playbooks || []);

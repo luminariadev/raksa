@@ -15,7 +15,7 @@
         <div>
           <div class="brand-title">
             <strong>raksa</strong>
-            <span class="badge badge-version" id="ui-version">v0.2.0</span>
+            <span class="badge badge-version" id="ui-version">v0.3.0</span>
             <span class="badge badge-edition" id="ui-edition">OSS</span>
           </div>
           <div class="brand-sub">Hybrid Defense-in-Depth Workbench (L1-L7)</div>
@@ -285,11 +285,39 @@
       <!-- Right Collapsible Panel -->
       <aside class="sidebar-right" id="sidebar-right">
         <div class="right-tabs">
-          <button type="button" class="rtab active" data-rtab="telemetry">Live Telemetry</button>
-          <button type="button" class="rtab" data-rtab="mcphub">MCP Hub (61)</button>
+          <button type="button" class="rtab active" data-rtab="assistant">AI Assistant</button>
+          <button type="button" class="rtab" data-rtab="telemetry">Telemetry</button>
+          <button type="button" class="rtab" data-rtab="mcphub">MCP (61)</button>
         </div>
 
-        <div class="right-pane active" id="rtab-telemetry">
+        <div class="right-pane active" id="rtab-assistant">
+          <div class="assistant-config">
+            <select id="assistant-mode" aria-label="Assistant mode">
+              <option value="local">Offline Deterministic</option>
+              <option value="ollama">Local Ollama</option>
+              <option value="byok">External API (BYOK)</option>
+            </select>
+            <input type="text" id="assistant-model" placeholder="Model (optional)">
+          </div>
+          <div class="assistant-chips" id="assistant-chips">
+            <button type="button" class="pill assistant-chip" data-prompt="Prioritize top risks">Prioritize top risks</button>
+            <button type="button" class="pill assistant-chip" data-prompt="Explain attack gaps">Explain attack gaps</button>
+            <button type="button" class="pill assistant-chip" data-prompt="Verify ledger integrity">Verify ledger</button>
+            <button type="button" class="pill assistant-chip" data-prompt="Summarize hardening fix plan">Hardening plan</button>
+          </div>
+          <div class="assistant-chat" id="assistant-chat">
+            <div class="chat-msg chat-bot">
+              <div class="chat-role">Raksa Defense Assistant (Read-Only)</div>
+              <div class="chat-body">Ask about risk prioritization, Attack-vs-Defense gaps, ledger verification, or patch previews backed by deterministic tool checks.</div>
+            </div>
+          </div>
+          <form class="assistant-form" id="assistant-form">
+            <input type="text" id="assistant-input" placeholder="Ask Defense Assistant (read-only)..." autocomplete="off">
+            <button type="submit" class="btn btn-primary">Send</button>
+          </form>
+        </div>
+
+        <div class="right-pane" id="rtab-telemetry">
           <div class="section-header-row">
             <span class="badge" id="sse-conn-badge">connecting...</span>
             <button type="button" class="btn-link" id="btn-clear-events">Clear</button>

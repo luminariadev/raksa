@@ -10,7 +10,7 @@ import (
 
 var (
 	// Version is the semantic version of raksa; overridden at release build time via ldflags.
-	Version = "0.2.0"
+	Version = "0.3.0"
 	// Commit is injected via ldflags when built in CI/release pipelines.
 	Commit = "dev"
 	// BuildDate is injected via ldflags when built in CI/release pipelines.

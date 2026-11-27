@@ -101,4 +101,14 @@ func TestCLIInstallDryRunPlaybooksAndMCP(t *testing.T) {
 	if !strings.Contains(errBuf.String(), "-listen") || !strings.Contains(errBuf.String(), "-from-reports") {
 		t.Fatalf("expected ui flags in help output, got: %s", errBuf.String())
 	}
+
+	out.Reset()
+	errBuf.Reset()
+	tuiInput := strings.NewReader("/matrix\n0\n")
+	if code := run([]string{"tui", "--from-reports", filepath.Join("..", "..", "testdata", "clean.json"), "--history", filepath.Join(t.TempDir(), "runs.ndjson")}, &out, &errBuf, tuiInput); code != 0 {
+		t.Fatalf("tui command failed: code=%d stderr=%s", code, errBuf.String())
+	}
+	if !strings.Contains(out.String(), "Raksa Interactive Defense Workbench") || !strings.Contains(out.String(), "D3-NTA") {
+		t.Fatalf("unexpected tui output: %s", out.String())
+	}
 }

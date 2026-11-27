@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/luminariadev/raksa/internal/aggregator"
+	"github.com/luminariadev/raksa/internal/assistant"
 	"github.com/luminariadev/raksa/internal/bridge"
 	"github.com/luminariadev/raksa/internal/ext"
 	"github.com/luminariadev/raksa/internal/mcphub"
@@ -181,6 +182,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/v1/waivers", s.handleAddWaiver)
 	mux.HandleFunc("/api/v1/siem/health", s.handleSIEMHealth)
 	mux.HandleFunc("/api/v1/siem/ingest", s.handleSIEMIngest)
+	mux.HandleFunc("/api/v1/assistant/config", s.handleAssistantConfig)
+	mux.HandleFunc("/api/v1/assistant/chat", s.handleAssistantChat)
 	mux.HandleFunc("/api/v1/events", s.handleSSE)
 
 	return s.securityMiddleware(mux)
@@ -652,6 +655,47 @@ func (s *Server) handleSIEMIngest(w http.ResponseWriter, r *http.Request) {
 
 	s.emitEvent("siem_ingest", fmt.Sprintf("Pushed suite report (%d findings) to %s", rep.Summary.Total, endpoint))
 	writeJSON(w, http.StatusOK, map[string]any{"endpoint": endpoint, "response": res})
+}
+
+func (s *Server) handleAssistantConfig(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSONError(w, http.StatusMethodNotAllowed, "GET required")
+		return
+	}
+	writeJSON(w, http.StatusOK, assistant.GetConfigStatus())
+}
+
+func (s *Server) handleAssistantChat(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSONError(w, http.StatusMethodNotAllowed, "POST required")
+		return
+	}
+	var req assistant.ChatRequest
+	if err := decodeJSONBody(r.Body, &req); err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	s.mu.RLock()
+	rep := s.active
+	s.mu.RUnlock()
+
+	res, err := assistant.Chat(r.Context(), assistant.InputContext{
+		Report:      rep,
+		Workspace:   s.cfg.Workspace,
+		BinDir:      s.cfg.BinDir,
+		HistoryPath: s.cfg.HistoryPath,
+		Resolver:    s.cfg.Resolver,
+		Exec:        s.cfg.Exec,
+		Remediate:   s.cfg.Remediate,
+	}, req)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	s.emitEvent("assistant_reply", fmt.Sprintf("AI Defense Assistant answered in %s mode (%d tool checks)", res.Mode, len(res.ToolCalls)))
+	writeJSON(w, http.StatusOK, res)
 }
 
 func (s *Server) resolveSIEMEndpoint(r *http.Request) string {

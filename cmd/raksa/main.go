@@ -31,6 +31,7 @@ import (
 	"github.com/luminariadev/raksa/internal/schema"
 	"github.com/luminariadev/raksa/internal/server"
 	"github.com/luminariadev/raksa/internal/store"
+	"github.com/luminariadev/raksa/internal/tui"
 )
 
 const (
@@ -71,6 +72,8 @@ func run(args []string, stdout, stderr io.Writer, stdin io.Reader) int {
 		return runMCP(rest, stdout, stderr, stdin)
 	case "ui", "serve":
 		return runUI(rest, stdout, stderr)
+	case "tui":
+		return runTUI(rest, stdout, stderr, stdin)
 	case "init":
 		return runInit(rest, stdout, stderr)
 	case "version", "-v", "--version":
@@ -99,6 +102,7 @@ Subcommands:
   playbooks      List, verify, or execute curated defensive YAML playbooks
   attack-matrix  Print Attack-vs-Defense countermeasure coverage across Raksa layers
   ui             Launch embedded 3-panel Hybrid Web Workbench server (alias: serve)
+  tui            Launch interactive terminal Blue Team workbench (SSH/headless friendly)
   mcp            Start unified stdio JSON-RPC 2.0 MCP hub (%d tools)
   init           Generate starter .raksa.yml governance config
   version        Print build, schema, and Open-Core edition metadata
@@ -729,6 +733,34 @@ func openBrowserURL(targetURL string) {
 		cmd = exec.Command("xdg-open", targetURL)
 	}
 	_ = cmd.Start()
+}
+
+func runTUI(args []string, stdout, stderr io.Writer, stdin io.Reader) int {
+	fs := flag.NewFlagSet("tui", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	workspace := fs.String("path", ".", "Workspace directory path")
+	fromReports := fs.String("from-reports", "", "Optional initial upstream reports file/directory")
+	binDir := fs.String("bin-dir", "", "Optional directory containing Layer 1-6 binaries")
+	historyPath := fs.String("history", store.DefaultHistoryPath(), "Path to SHA-256 hash-chained runs.ndjson")
+	siemURL := fs.String("siem-url", "", "Optional raksa-siem HTTP endpoint")
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return exitOK
+		}
+		return exitErr
+	}
+
+	if err := tui.Run(context.Background(), tui.Options{
+		Workspace:   *workspace,
+		FromReports: *fromReports,
+		BinDir:      *binDir,
+		HistoryPath: *historyPath,
+		SIEMURL:     *siemURL,
+	}, stdin, stdout); err != nil {
+		fmt.Fprintf(stderr, "error: tui failed: %v\n", err)
+		return exitErr
+	}
+	return exitOK
 }
 
 func writeOutput(data []byte, outputPath string, stdout io.Writer) error {
